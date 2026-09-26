@@ -14,7 +14,14 @@ from pydantic import ConfigDict, Field
 from pydantic_settings import BaseSettings
 
 
-class LLMSettings(BaseSettings):
+class _EnvSettings(BaseSettings):
+    """Base for all settings: an empty env var (e.g. LLM_TEMPERATURE="") falls
+    back to the field default instead of failing validation at import."""
+
+    model_config = ConfigDict(env_ignore_empty=True)
+
+
+class LLMSettings(_EnvSettings):
     """LLM-related configuration settings."""
 
     model_config = ConfigDict(
@@ -58,7 +65,7 @@ class LLMSettings(BaseSettings):
     max_tokens: int = Field(default=4096, validation_alias="LLM_MAX_TOKENS")
 
 
-class DataAPISettings(BaseSettings):
+class DataAPISettings(_EnvSettings):
     """Financial data API configuration settings."""
 
     model_config = ConfigDict(
@@ -74,7 +81,7 @@ class DataAPISettings(BaseSettings):
     fred_api_key: str = Field(default="", validation_alias="FRED_API_KEY")
 
 
-class DatabaseSettings(BaseSettings):
+class DatabaseSettings(_EnvSettings):
     """Database configuration settings."""
 
     database_url: str = Field(default="sqlite:///./data/financial_agent.db", env="DATABASE_URL")
@@ -85,7 +92,7 @@ class DatabaseSettings(BaseSettings):
     model_config = ConfigDict(env_prefix="")
 
 
-class VectorStoreSettings(BaseSettings):
+class VectorStoreSettings(_EnvSettings):
     """Vector store configuration settings."""
 
     # Vector store provider (chroma, qdrant, milvus, weaviate)
@@ -108,7 +115,7 @@ class VectorStoreSettings(BaseSettings):
     model_config = ConfigDict(env_prefix="")
 
 
-class AgentSettings(BaseSettings):
+class AgentSettings(_EnvSettings):
     """Agent behavior configuration settings."""
 
     max_iterations: int = Field(default=10, env="AGENT_MAX_ITERATIONS")
@@ -131,7 +138,7 @@ class AgentSettings(BaseSettings):
     model_config = ConfigDict(env_prefix="")
 
 
-class APISettings(BaseSettings):
+class APISettings(_EnvSettings):
     """API server configuration settings."""
 
     host: str = Field(default="0.0.0.0", env="API_HOST")
@@ -144,7 +151,7 @@ class APISettings(BaseSettings):
     model_config = ConfigDict(env_prefix="")
 
 
-class Settings(BaseSettings):
+class Settings(_EnvSettings):
     """Main application settings combining all sub-settings."""
 
     model_config = ConfigDict(
