@@ -1,0 +1,43 @@
+# Vercel deployment manifest ONLY.
+# Vercel's FastAPI preset (entrypoint: src/main.py) installs dependencies from
+# the project root. The full requirements.txt (~6.3 GB: torch, openbb, chromadb,
+# jupyter...) is hidden via .vercelignore; this slim set (~420 MB) fits the
+# 500 MB function limit. Heavy libraries are imported lazily, so the API starts.
+# Local dev, Docker, and CI still install requirements.txt explicitly.
+
+[project]
+name = "fin-research-agent"
+version = "1.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    # Web framework (src/main.py imports uvicorn at module level)
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.5.3",
+    "pydantic-settings>=2.1.0",
+    "python-multipart>=0.0.6",
+    # Agents / LLM — every provider BaseAgent supports (small, pure Python).
+    # LLM_PROVIDER defaults to ollama; set LLM_PROVIDER=groq on Vercel.
+    "langchain>=0.1.0",
+    "langchain-core>=0.1.0",
+    "langchain-ollama>=0.1.0",
+    "langchain-groq>=0.1.0",
+    "langchain-openai>=0.0.5",
+    "langchain-anthropic>=0.1.0",
+    # Data
+    "pandas>=2.1.4",
+    "numpy>=1.26.3",
+    "scipy>=1.12.0",
+    "yfinance>=0.2.35",
+    # HTTP & text
+    "httpx>=0.26.0",
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.3",
+    "feedparser>=6.0.10",
+    "textblob>=0.17.1",
+    # Utilities
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.1",
+    "loguru>=0.7.2",
+    "tenacity>=8.2.3",
+]

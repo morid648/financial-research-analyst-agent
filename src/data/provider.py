@@ -695,7 +695,7 @@ def get_provider(provider_name: str | None = None) -> MarketDataProvider:
 
         import os
 
-        name = (provider_name or os.getenv("DATA_PROVIDER", "yfinance")).lower()
+        name = (provider_name or os.getenv("DATA_PROVIDER") or "yfinance").lower()
         fallback_name = os.getenv("DATA_FALLBACK_PROVIDER", "").lower().strip()
 
         primary = _create_provider(name)
