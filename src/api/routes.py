@@ -5,12 +5,12 @@ FastAPI routes for the Financial Research Analyst API.
 """
 
 import asyncio
+import os
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import os
-from pathlib import Path
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -61,6 +61,7 @@ from src.tools.dividend_analyzer import analyze_dividends, compare_dividends
 from src.tools.earnings_data import analyze_earnings, compare_earnings
 from src.tools.event_analyzer import analyze_events
 from src.tools.insider_activity import analyze_smart_money
+from src.tools.insight_engine import generate_observations
 from src.tools.market_data import (
     get_company_dcf_profile,
     get_company_info,
@@ -69,6 +70,7 @@ from src.tools.market_data import (
     get_stock_price,
     resolve_ticker_symbol,
 )
+from src.tools.options_analyzer import analyze_options
 from src.tools.peer_comparison import compare_peers
 from src.tools.performance_tracker import track_performance
 from src.tools.technical_indicators import (
@@ -301,17 +303,30 @@ async def get_live_quote(symbol: str):
         provider = get_provider()
         info = provider.get_info(resolved_sym) or {}
         curr_code = info.get("currency", "USD")
-        is_indian = curr_code == "INR" or resolved_sym.endswith(".NS") or resolved_sym.endswith(".BO")
+        is_indian = (
+            curr_code == "INR" or resolved_sym.endswith(".NS") or resolved_sym.endswith(".BO")
+        )
         curr_symbol = "₹" if is_indian else "$"
 
-        curr_price = float(verified_price or info.get("currentPrice") or info.get("regularMarketPrice") or 0.0)
+        curr_price = float(
+            verified_price or info.get("currentPrice") or info.get("regularMarketPrice") or 0.0
+        )
         prev_close = float(info.get("previousClose") or curr_price)
-        chg_pct = round(((curr_price - prev_close) / prev_close) * 100, 2) if prev_close and prev_close > 0 else 0.0
+        chg_pct = (
+            round(((curr_price - prev_close) / prev_close) * 100, 2)
+            if prev_close and prev_close > 0
+            else 0.0
+        )
         is_up = chg_pct >= 0
 
         # Company profile & history
         company_info = get_company_info(resolved_sym)
-        company_name = company_info.get("name") or info.get("longName") or info.get("shortName") or resolved_sym
+        company_name = (
+            company_info.get("name")
+            or info.get("longName")
+            or info.get("shortName")
+            or resolved_sym
+        )
         sector = company_info.get("sector") or info.get("sector") or "Financials / General"
         website = company_info.get("website") or info.get("website") or ""
 
@@ -319,6 +334,7 @@ async def get_live_quote(symbol: str):
         raw_closes = hist_data.get("closes", [])[-10:] if "closes" in hist_data else []
 
         import math
+
         cleaned_closes = []
         for val in raw_closes:
             try:
@@ -341,7 +357,11 @@ async def get_live_quote(symbol: str):
         if pe_val is not None:
             try:
                 pe_float = float(pe_val)
-                pe_str = f"{pe_float:.1f}x" if not (math.isnan(pe_float) or math.isinf(pe_float)) else "N/A"
+                pe_str = (
+                    f"{pe_float:.1f}x"
+                    if not (math.isnan(pe_float) or math.isinf(pe_float))
+                    else "N/A"
+                )
             except Exception:
                 pe_str = "N/A"
         else:
@@ -367,13 +387,19 @@ async def get_live_quote(symbol: str):
                 pass
 
         # Check for capital erosion or distress
-        is_capital_eroded = (pb_float is not None and pb_float < 0) or (book_float is not None and book_float < 0)
+        is_capital_eroded = (pb_float is not None and pb_float < 0) or (
+            book_float is not None and book_float < 0
+        )
 
         mkt_cap = float(info.get("marketCap") or 0.0)
         if mkt_cap > 10**12:
-            mkt_cap_str = f"₹{mkt_cap / (10**7):,.0f} Cr" if is_indian else f"${mkt_cap / (10**12):.2f}T"
+            mkt_cap_str = (
+                f"₹{mkt_cap / (10**7):,.0f} Cr" if is_indian else f"${mkt_cap / (10**12):.2f}T"
+            )
         elif mkt_cap > 10**7:
-            mkt_cap_str = f"₹{mkt_cap / (10**7):,.0f} Cr" if is_indian else f"${mkt_cap / (10**9):.2f}B"
+            mkt_cap_str = (
+                f"₹{mkt_cap / (10**7):,.0f} Cr" if is_indian else f"${mkt_cap / (10**9):.2f}B"
+            )
         else:
             mkt_cap_str = f"{curr_symbol}{mkt_cap:,.0f}"
 
@@ -421,7 +447,9 @@ async def get_live_quote(symbol: str):
             risk_label = "High Solvency Hazard"
             risk_desc = f"Negative Book Value ({f'₹{book_float:.2f}' if is_indian and book_float else (f'${book_float:.2f}' if book_float else 'Deficit')}). High bankruptcy and insolvency risk."
             debt_val = f"P/B: {pb_str} • Net Worth < 0"
-            debt_desc = "Accumulated losses exceed equity; negative net worth with severe solvency risk"
+            debt_desc = (
+                "Accumulated losses exceed equity; negative net worth with severe solvency risk"
+            )
             profit_desc = f"Sector: {sector} • Non-operational / Nil Earnings"
         elif pe_float is not None and pe_float <= 0:
             rec = "SPECULATIVE / LOSS-MAKING" if is_up else "AVOID / UNPROFITABLE"
@@ -449,11 +477,17 @@ async def get_live_quote(symbol: str):
             risk_score = "Moderate Risk" if beta < 1.3 else "High Risk"
             risk_type = "neutral" if beta < 1.3 else "bearish"
             fund_label = "Pre-Earnings / Sparse Data"
-            fund_desc = f"Market cap of {mkt_cap_str} with no trailing P/E earnings disclosure on record."
+            fund_desc = (
+                f"Market cap of {mkt_cap_str} with no trailing P/E earnings disclosure on record."
+            )
             risk_label = risk_score
             risk_desc = f"Beta of {beta:.2f} with D/E of {de_str}."
             debt_val = f"D/E: {de_str} • Beta: {beta:.2f}"
-            debt_desc = "No external debt reported / sparse filings" if de_val is None else ("Manageable debt structure" if de_val < 1.5 else "Elevated debt leverage")
+            debt_desc = (
+                "No external debt reported / sparse filings"
+                if de_val is None
+                else ("Manageable debt structure" if de_val < 1.5 else "Elevated debt leverage")
+            )
             profit_desc = f"Sector: {sector}"
         else:
             if pe_float < 25 and is_up:
@@ -486,34 +520,58 @@ async def get_live_quote(symbol: str):
             risk_label = risk_score
             risk_desc = f"Beta of {beta:.2f} with D/E ratio of {de_str}. Standard equity exposure."
             debt_val = f"D/E: {de_str} • Beta: {beta:.2f}"
-            debt_desc = "Healthy capital structure within standard industry covenants" if (de_val is not None and de_val < 1.2) else ("Elevated debt leverage profile" if de_val is not None else "Conservative / unrated debt structure")
+            debt_desc = (
+                "Healthy capital structure within standard industry covenants"
+                if (de_val is not None and de_val < 1.2)
+                else (
+                    "Elevated debt leverage profile"
+                    if de_val is not None
+                    else "Conservative / unrated debt structure"
+                )
+            )
             profit_desc = f"Sector: {sector}"
 
         scorecards_dict = {
             "fundamental": {
                 "score": f"{fundamental_score} / 100",
                 "label": fund_label,
-                "type": "bullish" if fundamental_score > 75 else ("bearish" if fundamental_score < 40 else "neutral"),
-                "desc": fund_desc
+                "type": (
+                    "bullish"
+                    if fundamental_score > 75
+                    else ("bearish" if fundamental_score < 40 else "neutral")
+                ),
+                "desc": fund_desc,
             },
             "technical": {
                 "score": f"{technical_score} / 100",
                 "label": "Upward Momentum" if is_up else "Consolidating",
                 "type": "bullish" if is_up else "neutral",
-                "desc": f"Recent 10-session price action closing at {formatted_price} with {formatted_change} session change."
+                "desc": f"Recent 10-session price action closing at {formatted_price} with {formatted_change} session change.",
             },
             "sentiment": {
                 "score": sentiment_score,
-                "label": "Positive Stream" if (sentiment_score.startswith('+') and float(sentiment_score) > 0.3) else ("Negative Caution" if sentiment_score.startswith('-') else "Neutral"),
-                "type": "bullish" if sentiment_score.startswith('+') and float(sentiment_score) > 0.3 else ("bearish" if sentiment_score.startswith('-') else "neutral"),
-                "desc": "Active market discussion and continuous institutional exchange flow." if not is_capital_eroded else "Subdued institutional participation with high retail speculative volatility."
+                "label": (
+                    "Positive Stream"
+                    if (sentiment_score.startswith("+") and float(sentiment_score) > 0.3)
+                    else ("Negative Caution" if sentiment_score.startswith("-") else "Neutral")
+                ),
+                "type": (
+                    "bullish"
+                    if sentiment_score.startswith("+") and float(sentiment_score) > 0.3
+                    else ("bearish" if sentiment_score.startswith("-") else "neutral")
+                ),
+                "desc": (
+                    "Active market discussion and continuous institutional exchange flow."
+                    if not is_capital_eroded
+                    else "Subdued institutional participation with high retail speculative volatility."
+                ),
             },
             "risk": {
                 "score": risk_score,
                 "label": risk_label,
                 "type": risk_type,
-                "desc": risk_desc
-            }
+                "desc": risk_desc,
+            },
         }
 
         return {
@@ -535,14 +593,11 @@ async def get_live_quote(symbol: str):
             "history": cleaned_closes,
             "chart_data": {
                 "labels": ["10d", "9d", "8d", "7d", "6d", "5d", "4d", "3d", "2d", "Live"],
-                "prices": cleaned_closes
+                "prices": cleaned_closes,
             },
             "sector": sector,
             "website": website,
-            "recommendation": {
-                "signal": rec,
-                "confidence": confidence
-            },
+            "recommendation": {"signal": rec, "confidence": confidence},
             "recType": rec_type,
             "confidence": confidence,
             "scorecards": scorecards_dict,
@@ -553,21 +608,15 @@ async def get_live_quote(symbol: str):
             "snippets": {
                 "valuation": {
                     "val": f"P/E: {pe_str} • P/B: {pb_str}",
-                    "desc": f"Cap: {mkt_cap_str} • Exchange: {info.get('exchange', 'Active')}"
+                    "desc": f"Cap: {mkt_cap_str} • Exchange: {info.get('exchange', 'Active')}",
                 },
-                "profit": {
-                    "val": f"ROE: {roe_str} • Margin: {margin_str}",
-                    "desc": profit_desc
-                },
-                "debt": {
-                    "val": debt_val,
-                    "desc": debt_desc
-                },
+                "profit": {"val": f"ROE: {roe_str} • Margin: {margin_str}", "desc": profit_desc},
+                "debt": {"val": debt_val, "desc": debt_desc},
                 "growth": {
                     "val": f"52W: {curr_symbol}{low_52:,.2f} – {curr_symbol}{high_52:,.2f}",
-                    "desc": "Real-time exchange feed synchronized"
-                }
-            }
+                    "desc": "Real-time exchange feed synchronized",
+                },
+            },
         }
     except HTTPException:
         raise
@@ -674,10 +723,10 @@ def _compute_risk_metrics(returns: List[float]) -> Dict[str, Any]:
 
     arr = np.array(returns, dtype=float)
     daily_vol = float(np.std(arr))
-    annual_vol = daily_vol * (252 ** 0.5)
+    annual_vol = daily_vol * (252**0.5)
     var_95 = float(np.percentile(arr, 5))
     mean_daily = float(np.mean(arr))
-    sharpe = round((mean_daily / daily_vol) * (252 ** 0.5), 2) if daily_vol > 0 else 0.0
+    sharpe = round((mean_daily / daily_vol) * (252**0.5), 2) if daily_vol > 0 else 0.0
 
     return {
         "status": "analyzed",
@@ -2047,6 +2096,7 @@ async def general_exception_handler(request, exc):
 
 # ─── Static Dashboard Mounting ─────────────────────────────────────────────
 import os
+
 from fastapi.staticfiles import StaticFiles
 
 _static_dir = os.path.join(

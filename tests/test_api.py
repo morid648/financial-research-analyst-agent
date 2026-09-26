@@ -76,7 +76,8 @@ class TestAnalyzeEndpoint:
 
         response = client.post("/api/v1/analyze", json={"symbol": "INVALID123"})
 
-        assert response.status_code == 400
+        # Unknown symbol -> 404, matching the other symbol endpoints
+        assert response.status_code == 404
 
 
 class TestTechnicalEndpoint:
