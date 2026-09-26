@@ -205,10 +205,10 @@ def send_digest_email(
         Dict with delivery status.
     """
     smtp_host = os.getenv("SMTP_HOST", "")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_port = int(os.getenv("SMTP_PORT") or "587")
     smtp_user = os.getenv("SMTP_USER", "")
     smtp_pass = os.getenv("SMTP_PASSWORD", "")
-    smtp_from = os.getenv("SMTP_FROM", smtp_user)
+    smtp_from = os.getenv("SMTP_FROM") or smtp_user
 
     if not smtp_host or not smtp_user:
         # Save to disk instead

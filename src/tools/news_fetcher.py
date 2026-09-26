@@ -19,7 +19,7 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 # Configurable fallback behavior
-FALLBACK_TO_SAMPLE = os.getenv("NEWS_FALLBACK_SAMPLE", "true").lower() == "true"
+FALLBACK_TO_SAMPLE = (os.getenv("NEWS_FALLBACK_SAMPLE") or "true").lower() == "true"
 
 
 def fetch_news(query: str, days_back: int = 7) -> List[Dict[str, Any]]:
