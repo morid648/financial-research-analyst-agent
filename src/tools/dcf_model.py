@@ -200,7 +200,9 @@ def run_dcf_analysis(
         info = provider.get_info(lookup_sym) or {}
         cash_flow = provider.get_cash_flow(lookup_sym)
 
-        current_price = verified_price or _safe_float(info.get("currentPrice", info.get("regularMarketPrice")), 0)
+        current_price = verified_price or _safe_float(
+            info.get("currentPrice", info.get("regularMarketPrice")), 0
+        )
         shares = _safe_float(info.get("sharesOutstanding"), 1)
 
         # Get FCF
@@ -351,7 +353,9 @@ def sensitivity_analysis(symbol: str) -> Dict[str, Any]:
         info = provider.get_info(lookup_sym) or {}
         cash_flow = provider.get_cash_flow(lookup_sym)
 
-        current_price = verified_price or _safe_float(info.get("currentPrice", info.get("regularMarketPrice")), 0)
+        current_price = verified_price or _safe_float(
+            info.get("currentPrice", info.get("regularMarketPrice")), 0
+        )
         shares = _safe_float(info.get("sharesOutstanding"), 1)
 
         fcf = _get_latest_value(cash_flow, ["Free Cash Flow", "FreeCashFlow"])

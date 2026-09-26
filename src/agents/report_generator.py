@@ -45,6 +45,7 @@ def _recommendation_sensitivity(
         - 'sensitivity_detail' (dict): Per-input breakdown showing ±composite and
           whether the label changes.
     """
+
     def _label(composite: float) -> str:
         if composite >= 0.7:
             return "STRONG BUY"
@@ -166,6 +167,7 @@ Key Findings:
             # F4: weights now read from config (src/config.py AgentSettings).
             # Populated at call time so tests can patch get_settings cleanly.
             from src.config import get_settings
+
             cfg_weights = get_settings().agent.confidence_weights
             weights = {
                 "technical": cfg_weights.get("technical", 0.25),

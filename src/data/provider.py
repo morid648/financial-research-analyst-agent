@@ -261,6 +261,7 @@ class YFinanceProvider(MarketDataProvider):
         sym = symbol.upper().strip()
         try:
             from src.tools.market_data import COMMON_TICKER_ALIASES
+
             if sym in COMMON_TICKER_ALIASES:
                 sym = COMMON_TICKER_ALIASES[sym]
         except Exception:
@@ -291,8 +292,17 @@ class YFinanceProvider(MarketDataProvider):
             try:
                 t = self._ticker(s)
                 info = t.info or {}
-                fast_price = getattr(t, "fast_info", {}).get("last_price", 0) if hasattr(t, "fast_info") else 0
-                price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose") or fast_price
+                fast_price = (
+                    getattr(t, "fast_info", {}).get("last_price", 0)
+                    if hasattr(t, "fast_info")
+                    else 0
+                )
+                price = (
+                    info.get("currentPrice")
+                    or info.get("regularMarketPrice")
+                    or info.get("previousClose")
+                    or fast_price
+                )
                 if price:
                     if "currentPrice" not in info or not info["currentPrice"]:
                         info["currentPrice"] = price
@@ -649,6 +659,7 @@ def _create_provider(name: str) -> MarketDataProvider:
         return AlphaVantageProvider(api_key=api_key)
     elif name == "openbb":
         from src.data.openbb_provider import OpenBBProvider
+
         return OpenBBProvider()
     elif name == "twelvedata":
         raise NotImplementedError("Twelve Data provider not yet implemented.")
