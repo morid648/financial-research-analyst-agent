@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCF model — FinResearch</title>
+  <meta name="description" content="Adjustable discounted cash flow model: five-year free cash flow, WACC, enterprise-to-equity bridge and sensitivity grid.">
+  <script src="/static/js/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css?v=3">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>FinResearch</a>
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="/">Overview</a></li>
+          <li><a href="/dashboard/">Dashboard</a></li>
+          <li><a href="/ratios">Ratios</a></li>
+          <li><a href="/dcf" aria-current="page">DCF model</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/docs">API reference</a></li>
+        </ul>
+      </nav>
+      <div class="header-actions">
+        <button class="btn btn-ghost btn-icon" type="button" data-theme-toggle aria-label="Switch theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page">
+    <div class="container">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Discounted cash flow</p>
+          <h1 id="dcfStockHeading" class="page-title">Loading…</h1>
+          <p id="dcfStockSubheading" class="muted"></p>
+        </div>
+        <div class="stack" style="width: min(420px, 100%);">
+          <div class="search" role="search">
+            <label class="search-field">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <span class="sr-only">Ticker or company</span>
+              <input type="text" id="dcfTickerInput" placeholder="Ticker or company, e.g. AAPL" autocomplete="off" spellcheck="false">
+            </label>
+            <button id="dcfSearchBtn" class="btn btn-primary" type="button">Run</button>
+          </div>
+          <div class="presets" aria-label="Popular tickers">
+            <button class="ticker-btn" type="button" data-ticker="RELIANCE">RELIANCE</button>
+            <button class="ticker-btn" type="button" data-ticker="TCS">TCS</button>
+            <button class="ticker-btn" type="button" data-ticker="CANBK">CANBK</button>
+            <button class="ticker-btn" type="button" data-ticker="AAPL">AAPL</button>
+            <button class="ticker-btn" type="button" data-ticker="NVDA">NVDA</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="dcfErrorBanner" class="alert alert-error" role="alert" style="display: none;">
+        <span id="dcfErrorText"></span>
+        <button class="alert-close" type="button" aria-label="Dismiss" onclick="document.getElementById('dcfErrorBanner').style.display='none'">&times;</button>
+      </div>
+      <div id="dcfLoadingBanner" class="alert alert-info" role="status" style="display: none;">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="dcfLoadingText">Loading financials…</span>
+      </div>
+
+      <div class="dcf-layout">
+        <aside class="panel dcf-controls" aria-labelledby="assumptions-title">
+          <div class="panel-head">
+            <h2 id="assumptions-title">Assumptions</h2>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="resetDCFToDefaults()">Reset</button>
+          </div>
+          <div class="panel-body">
+            <div class="segmented" role="group" aria-label="Scenario" style="display: flex;">
+              <button class="scenario-btn" type="button" aria-pressed="false" data-scenario="bear" style="flex: 1;">Bear</button>
+              <button class="scenario-btn active" type="button" aria-pressed="true" data-scenario="base" style="flex: 1;">Base</button>
+              <button class="scenario-btn" type="button" aria-pressed="false" data-scenario="bull" style="flex: 1;">Bull</button>
+            </div>
+
+            <div class="control-group">
+              <label for="sliderGrowth"><span>Revenue growth, yrs 1–5<span id="srcGrowth" class="source-tag"></span></span><span id="dispGrowth" class="control-value-display">—</span></label>
+              <input type="range" id="sliderGrowth" class="dcf-slider" min="0" max="60" step="any" value="10" oninput="onParamChange()">
+            </div>
+            <div class="control-group">
+              <label for="sliderMargin"><span>Operating margin<span id="srcMargin" class="source-tag"></span></span><span id="dispMargin" class="control-value-display">—</span></label>
+              <input type="range" id="sliderMargin" class="dcf-slider" min="1" max="75" step="any" value="15" oninput="onParamChange()">
+            </div>
+            <div class="control-group">
+              <label for="sliderBeta"><span>Beta</span><span id="dispBeta" class="control-value-display">—</span></label>
+              <input type="range" id="sliderBeta" class="dcf-slider" min="0.4" max="3.0" step="any" value="1" oninput="onParamChange()">
+            </div>
+            <div class="control-group">
+              <label for="sliderTerminalG"><span>Terminal growth</span><span id="dispTerminalG" class="control-value-display">—</span></label>
+              <input type="range" id="sliderTerminalG" class="dcf-slider" min="0" max="7.0" step="any" value="2.5" oninput="onParamChange()">
+            </div>
+            <div class="control-group">
+              <label for="sliderRf"><span>Risk-free rate</span><span id="dispRf" class="control-value-display">—</span></label>
+              <input type="range" id="sliderRf" class="dcf-slider" min="2.0" max="9.0" step="any" value="4.2" oninput="onParamChange()">
+            </div>
+            <div class="control-group">
+              <label for="sliderERP"><span>Equity risk premium</span><span id="dispERP" class="control-value-display">—</span></label>
+              <input type="range" id="sliderERP" class="dcf-slider" min="3.0" max="8.0" step="any" value="5" oninput="onParamChange()">
+            </div>
+
+            <div class="wacc-summary">
+              <span>Discount rate (WACC)</span>
+              <strong id="dispComputedWACC">—</strong>
+            </div>
+            <p id="dcfAssumptionNote" class="subtle"></p>
+          </div>
+        </aside>
+
+        <div class="dcf-main">
+          <div class="figures" aria-live="polite">
+            <div class="figure">
+              <div class="figure-label">Market price</div>
+              <div id="dcfCMP" class="figure-value lg">—</div>
+            </div>
+            <div class="figure">
+              <div class="figure-label">DCF value per share</div>
+              <div id="dcfFairValue" class="figure-value lg">—</div>
+            </div>
+            <div class="figure">
+              <div class="figure-label">Difference</div>
+              <div id="dcfGap" class="figure-value valuation-verdict">—</div>
+            </div>
+          </div>
+
+          <section class="panel" aria-labelledby="fcf-title">
+            <div class="panel-head">
+              <h2 id="fcf-title">Free cash flow projection</h2>
+              <span id="dcfUnitLabel" class="subtle"></span>
+            </div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Line item</th>
+                    <th scope="col">Base</th>
+                    <th scope="col">Year 1</th>
+                    <th scope="col">Year 2</th>
+                    <th scope="col">Year 3</th>
+                    <th scope="col">Year 4</th>
+                    <th scope="col">Year 5</th>
+                  </tr>
+                </thead>
+                <tbody id="dcfTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="two-col">
+            <section class="panel" aria-labelledby="wacc-title">
+              <div class="panel-head"><h2 id="wacc-title">Cost of capital</h2></div>
+              <div class="panel-body">
+                <ul class="bridge">
+                  <li><span>Cost of equity (Rf + β × ERP)</span><span id="keVal">—</span></li>
+                  <li><span>Cost of debt, after tax</span><span id="kdVal">—</span></li>
+                  <li><span>Capital weights</span><span id="weightsVal">—</span></li>
+                  <li class="total"><span>WACC</span><span id="finalWACCVal">—</span></li>
+                </ul>
+              </div>
+            </section>
+
+            <section class="panel" aria-labelledby="bridge-title">
+              <div class="panel-head"><h2 id="bridge-title">Enterprise to equity value</h2></div>
+              <div class="panel-body">
+                <ul class="bridge">
+                  <li><span>PV of five-year cash flows</span><span id="pvCashFlowsVal">—</span></li>
+                  <li><span>PV of terminal value</span><span id="pvTerminalVal">—</span></li>
+                  <li class="subtotal"><span>Enterprise value</span><span id="impliedEVVal">—</span></li>
+                  <li><span>Less total debt</span><span id="totalDebtVal">—</span></li>
+                  <li><span>Plus cash</span><span id="cashVal">—</span></li>
+                  <li class="total"><span>Equity value</span><span id="equityValueVal">—</span></li>
+                </ul>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel" aria-labelledby="sens-title">
+            <div class="panel-head">
+              <h2 id="sens-title">Sensitivity</h2>
+              <span class="subtle">Value per share · WACC (rows) × terminal growth (columns)</span>
+            </div>
+            <div class="table-wrap">
+              <table class="table sensitivity-table">
+                <thead>
+                  <tr>
+                    <th scope="col">WACC</th>
+                    <th scope="col" id="thG1">—</th>
+                    <th scope="col" id="thG2">—</th>
+                    <th scope="col" id="thG3">—</th>
+                    <th scope="col" id="thG4">—</th>
+                    <th scope="col" id="thG5">—</th>
+                  </tr>
+                </thead>
+                <tbody id="sensitivityBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Model output depends entirely on the assumptions shown. For research and education. Not investment advice. Built by <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">Anshul Chaudhary</a>.</p>
+      <nav aria-label="Footer">
+        <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <a href="https://github.com/morid648" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="/docs">API reference</a>
+        <a href="/health">Service health</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    let currentStockKey = 'RELIANCE';
+    let currentStock = null;
+    let initialStockParams = null;
+    let apiScenarios = null;
+
+    function getFormValues() {
+      return {
+        growth: parseFloat(document.getElementById('sliderGrowth').value),
+        margin: parseFloat(document.getElementById('sliderMargin').value),
+        beta: parseFloat(document.getElementById('sliderBeta').value),
+        terminalG: parseFloat(document.getElementById('sliderTerminalG').value),
+        rf: parseFloat(document.getElementById('sliderRf').value),
+        erp: parseFloat(document.getElementById('sliderERP').value)
+      };
+    }
+
+    function calculateDCF(stock, params) {
+      if (!stock) return null;
+      const taxRate = stock.taxRate || 25.0;
+      const daRate = stock.daRate || 3.0;
+      const capexRate = stock.capexRate || 4.0;
+      const nwcRate = stock.nwcRate || 2.0;
+
+      // 1. Cost of Capital (WACC)
+      const ke = params.rf + (params.beta * params.erp);
+      const kdPreTax = params.rf + 2.0;
+      const kdAfterTax = kdPreTax * (1 - (taxRate / 100));
+
+      const totalCap = stock.debt + (stock.cmp * stock.shares);
+      const we = totalCap > 0 ? (stock.cmp * stock.shares) / totalCap : 0.85;
+      const wd = 1.0 - we;
+
+      // waccOverride lets the sensitivity matrix price each row at its own WACC step
+      // instead of silently recomputing the same base-case WACC for every row.
+      const wacc = (typeof params.waccOverride === 'number') ? params.waccOverride : (we * ke) + (wd * kdAfterTax);
+      const waccDec = Math.max(0.04, wacc / 100);
+      const gDec = params.terminalG / 100;
+
+      // 2. 5-Year Forecast Waterfall
+      const years = [1, 2, 3, 4, 5];
+      let currentRev = stock.baseRevenue;
+      const forecast = [];
+      let totalPvFCF = 0;
+
+      years.forEach(y => {
+        currentRev = currentRev * (1 + (params.growth / 100));
+        const ebit = currentRev * (params.margin / 100);
+        const tax = ebit * (taxRate / 100);
+        const nopat = ebit - tax;
+        const da = currentRev * (daRate / 100);
+        const capex = currentRev * (capexRate / 100);
+        const nwc = currentRev * (nwcRate / 100);
+        const fcf = nopat + da - capex - nwc;
+
+        const discountFactor = 1 / Math.pow(1 + waccDec, y);
+        const pvFCF = fcf * discountFactor;
+        totalPvFCF += pvFCF;
+
+        forecast.push({
+          year: y,
+          rev: currentRev,
+          ebit: ebit,
+          nopat: nopat,
+          da: da,
+          capex: capex,
+          nwc: nwc,
+          fcf: fcf,
+          df: discountFactor,
+          pv: pvFCF
+        });
+      });
+
+      // 3. Terminal Value
+      const fcf5 = forecast[4].fcf;
+      const denom = Math.max(0.01, waccDec - gDec);
+      const terminalValue = (fcf5 * (1 + gDec)) / denom;
+      const pvTerminalValue = terminalValue / Math.pow(1 + waccDec, 5);
+
+      // 4. Enterprise Value to Equity Value Bridge
+      const enterpriseValue = totalPvFCF + pvTerminalValue;
+      const equityValue = enterpriseValue - stock.debt + stock.cash;
+      const fairValuePerShare = stock.shares > 0 ? Math.max(0, equityValue / stock.shares) : 0;
+
+      return {
+        ke,
+        kdAfterTax,
+        we,
+        wd,
+        wacc,
+        forecast,
+        totalPvFCF,
+        terminalValue,
+        pvTerminalValue,
+        enterpriseValue,
+        equityValue,
+        fairValuePerShare
+      };
+    }
+
+
+    const SOURCE_LABEL = { 'company-reported': 'reported', 'sector-default': 'default', 'override': 'custom', 'trailing-actual': 'trailing actuals', 'generic-default': 'generic defaults' };
+
+    function fmtNum(v) {
+      const n = Math.round(v);
+      return (n < 0 ? '−' : '') + Math.abs(n).toLocaleString('en-US');
+    }
+    function fmtMoney(curr, v, dp = 2) {
+      return `${curr}${Number(v).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
+    }
+
+    function renderDCF() {
+      if (!currentStock) return;
+      const p = getFormValues();
+
+      document.getElementById('dispGrowth').textContent = p.growth.toFixed(1) + '%';
+      document.getElementById('dispMargin').textContent = p.margin.toFixed(1) + '%';
+      document.getElementById('dispBeta').textContent = p.beta.toFixed(2);
+      document.getElementById('dispTerminalG').textContent = p.terminalG.toFixed(2) + '%';
+      document.getElementById('dispRf').textContent = p.rf.toFixed(2) + '%';
+      document.getElementById('dispERP').textContent = p.erp.toFixed(2) + '%';
+
+      const res = calculateDCF(currentStock, p);
+      if (!res) return;
+
+      const curr = currentStock.currency;
+      const unit = currentStock.unit;
+
+      document.getElementById('dispComputedWACC').textContent = res.wacc.toFixed(2) + '%';
+
+      const fairVal = Math.max(0, res.fairValuePerShare);
+      document.getElementById('dcfCMP').textContent = fmtMoney(curr, currentStock.cmp);
+      document.getElementById('dcfFairValue').textContent = fmtMoney(curr, fairVal);
+
+      const gapPct = ((fairVal - currentStock.cmp) / currentStock.cmp) * 100;
+      const gapEl = document.getElementById('dcfGap');
+      gapEl.classList.remove('positive', 'negative');
+      if (currentStock.baseRevenue <= 0 && res.equityValue <= 0) {
+        gapEl.textContent = 'No operating revenue';
+        gapEl.classList.add('negative');
+      } else if (fairVal <= 0) {
+        gapEl.textContent = 'Equity value below zero';
+        gapEl.classList.add('negative');
+      } else {
+        gapEl.textContent = `${gapPct >= 0 ? '+' : '−'}${Math.abs(gapPct).toFixed(1)}% ${gapPct >= 0 ? 'above' : 'below'} price`;
+        gapEl.classList.add(gapPct >= 0 ? 'positive' : 'negative');
+      }
+
+      const row = (label, base, vals, cls = '') =>
+        `<tr${cls ? ` class="${cls}"` : ''}><th scope="row">${label}</th><td>${base}</td>${vals.map(v => `<td>${v}</td>`).join('')}</tr>`;
+      const f = res.forecast;
+      document.getElementById('dcfTableBody').innerHTML = [
+        row('Revenue', fmtNum(currentStock.baseRevenue), f.map(x => fmtNum(x.rev))),
+        row('Operating profit (EBIT)', '—', f.map(x => fmtNum(x.ebit))),
+        row('NOPAT (EBIT after tax)', '—', f.map(x => fmtNum(x.nopat))),
+        row('Plus D&amp;A', '—', f.map(x => fmtNum(x.da))),
+        row('Less capital expenditure', '—', f.map(x => fmtNum(-x.capex))),
+        row('Less change in working capital', '—', f.map(x => fmtNum(-x.nwc))),
+        row('Unlevered free cash flow', '—', f.map(x => fmtNum(x.fcf)), 'row-total'),
+        row(`Discount factor at ${res.wacc.toFixed(2)}%`, '1.000', f.map(x => x.df.toFixed(3)), 'row-dim'),
+        row('Present value', '—', f.map(x => fmtNum(x.pv)), 'highlight-row')
+      ].join('');
+
+      document.getElementById('keVal').textContent = `${res.ke.toFixed(2)}%`;
+      document.getElementById('kdVal').textContent = `${res.kdAfterTax.toFixed(2)}%`;
+      document.getElementById('weightsVal').textContent = `${(res.we * 100).toFixed(0)}% equity · ${(res.wd * 100).toFixed(0)}% debt`;
+      document.getElementById('finalWACCVal').textContent = `${res.wacc.toFixed(2)}%`;
+
+      const money = (v) => `${curr}${fmtNum(v)} ${unit}`;
+      document.getElementById('pvCashFlowsVal').textContent = money(res.totalPvFCF);
+      document.getElementById('pvTerminalVal').textContent = money(res.pvTerminalValue);
+      document.getElementById('impliedEVVal').textContent = money(res.enterpriseValue);
+      document.getElementById('totalDebtVal').textContent = `−${curr}${fmtNum(currentStock.debt)} ${unit}`;
+      document.getElementById('cashVal').textContent = `+${curr}${fmtNum(currentStock.cash)} ${unit}`;
+      document.getElementById('equityValueVal').textContent = money(res.equityValue);
+
+      renderSensitivityMatrix(currentStock, p, res.wacc);
+    }
+
+    function renderSensitivityMatrix(stock, baseParams, actualWACC) {
+      const gSteps = [baseParams.terminalG - 1.0, baseParams.terminalG - 0.5, baseParams.terminalG, baseParams.terminalG + 0.5, baseParams.terminalG + 1.0];
+      const waccSteps = [actualWACC - 1.5, actualWACC - 0.75, actualWACC, actualWACC + 0.75, actualWACC + 1.5];
+
+      gSteps.forEach((g, idx) => {
+        const th = document.getElementById('thG' + (idx + 1));
+        if (th) th.textContent = `g ${g.toFixed(1)}%`;
+      });
+
+      let html = '';
+      waccSteps.forEach((w, rIdx) => {
+        html += `<tr><th scope="row">${w.toFixed(2)}%</th>`;
+        gSteps.forEach((g, cIdx) => {
+          const shiftedRes = calculateDCF(stock, { ...baseParams, terminalG: g, waccOverride: w });
+          const val = shiftedRes ? shiftedRes.fairValuePerShare : 0;
+          const isCenter = (rIdx === 2 && cIdx === 2);
+          html += `<td class="${isCenter ? 'active-cell' : ''}">${stock.currency}${val.toFixed(1)}</td>`;
+        });
+        html += `</tr>`;
+      });
+      document.getElementById('sensitivityBody').innerHTML = html;
+    }
+
+    function onParamChange() {
+      setScenarioButton(null);
+      renderDCF();
+    }
+
+    function setScenarioButton(type) {
+      document.querySelectorAll('.scenario-btn').forEach(b => {
+        const on = b.dataset.scenario === type;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
+    }
+
+    async function loadDCFStock(key) {
+      if (!key || !key.trim()) return;
+      const clean = key.trim().toUpperCase();
+      currentStockKey = clean;
+
+      const input = document.getElementById('dcfTickerInput');
+      if (input) input.value = clean;
+
+      const errBanner = document.getElementById('dcfErrorBanner');
+      const loadBanner = document.getElementById('dcfLoadingBanner');
+      const loadText = document.getElementById('dcfLoadingText');
+      const searchBtn = document.getElementById('dcfSearchBtn');
+      if (errBanner) errBanner.style.display = 'none';
+      if (loadBanner) {
+        loadBanner.style.display = 'flex';
+        if (loadText) loadText.textContent = `Loading financials for ${clean}…`;
+      }
+      if (searchBtn) searchBtn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/v1/dcf/${encodeURIComponent(clean)}`);
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          showDCFError(data.error || data.detail || `Couldn't find '${clean}'. Try an exchange ticker such as AAPL, RELIANCE.NS or TCS.NS.`);
+          return;
+        }
+
+        const resolvedCurrCode = data.currency_code || data.currencyCode || (data.currency === '₹' ? 'INR' : 'USD');
+        currentStock = {
+          symbol: data.symbol,
+          name: data.name,
+          currency: data.currency,
+          currencyCode: resolvedCurrCode,
+          unit: data.unit,
+          cmp: data.cmp,
+          baseRevenue: data.base_revenue,
+          growth: data.growth,
+          margin: data.margin,
+          beta: data.beta,
+          terminalG: data.terminal_g,
+          rf: data.rf,
+          erp: data.erp,
+          taxRate: data.tax_rate,
+          daRate: data.da_rate,
+          capexRate: data.capex_rate,
+          nwcRate: data.nwc_rate,
+          debt: data.debt,
+          cash: data.cash,
+          shares: data.shares
+        };
+
+        initialStockParams = {
+          growth: data.growth,
+          margin: data.margin,
+          beta: data.beta,
+          terminalG: data.terminal_g,
+          rf: data.rf,
+          erp: data.erp
+        };
+        apiScenarios = data.scenarios || null;
+
+        document.getElementById('dcfStockHeading').textContent = data.name;
+        document.getElementById('dcfStockSubheading').textContent =
+          `${data.symbol} · ${resolvedCurrCode} · Revenue ${data.currency}${fmtNum(data.base_revenue)} ${data.unit} · Debt ${data.currency}${fmtNum(data.debt)} ${data.unit} · Cash ${data.currency}${fmtNum(data.cash)} ${data.unit}`;
+
+        document.getElementById('sliderGrowth').value = data.growth;
+        document.getElementById('sliderMargin').value = data.margin;
+        document.getElementById('sliderBeta').value = data.beta;
+        document.getElementById('sliderTerminalG').value = data.terminal_g;
+        document.getElementById('sliderRf').value = data.rf;
+        document.getElementById('sliderERP').value = data.erp;
+
+        const src = data.assumption_sources || {};
+        document.getElementById('srcGrowth').textContent = SOURCE_LABEL[src.growth] ? `· ${SOURCE_LABEL[src.growth]}` : '';
+        document.getElementById('srcMargin').textContent = SOURCE_LABEL[src.margin] ? `· ${SOURCE_LABEL[src.margin]}` : '';
+        document.getElementById('dcfAssumptionNote').textContent =
+          `D&A ${Number(data.da_rate).toFixed(1)}%, capex ${Number(data.capex_rate).toFixed(1)}% and working capital ${Number(data.nwc_rate).toFixed(1)}% of revenue, from ${SOURCE_LABEL[src.capex_rate] || 'defaults'}. Tax rate ${data.tax_rate}%.`;
+        document.getElementById('dcfUnitLabel').textContent = `${data.currency} ${data.unit}`;
+
+        setScenarioButton('base');
+        renderDCF();
+
+        const actualSym = data.symbol || clean;
+        try { localStorage.setItem('finresearch_active_ticker', actualSym); } catch (_) {}
+
+        document.querySelectorAll('a[href^="/ratios"]').forEach(a => { a.href = `/ratios?symbol=${encodeURIComponent(actualSym)}`; });
+        document.querySelectorAll('a[href^="/dcf"]').forEach(a => { a.href = `/dcf?symbol=${encodeURIComponent(actualSym)}`; });
+        document.querySelectorAll('a').forEach(a => {
+          const href = a.getAttribute('href') || '';
+          if (href === '/' || href.startsWith('/?symbol=')) a.href = `/?symbol=${encodeURIComponent(actualSym)}#studio`;
+        });
+
+        const upperSym = actualSym.toUpperCase();
+        document.querySelectorAll('.ticker-btn').forEach(btn => {
+          const t = (btn.dataset.ticker || '').toUpperCase();
+          btn.classList.toggle('active', upperSym === t || upperSym.startsWith(t + '.'));
+        });
+
+        const url = new URL(window.location);
+        url.searchParams.set('symbol', actualSym);
+        window.history.replaceState({}, '', url);
+      } catch (err) {
+        showDCFError(`Couldn't reach the valuation service for '${clean}'. Check the ticker and try again.`);
+      } finally {
+        if (loadBanner) loadBanner.style.display = 'none';
+        if (searchBtn) searchBtn.disabled = false;
+      }
+    }
+
+    function showDCFError(msg) {
+      const errBanner = document.getElementById('dcfErrorBanner');
+      const errText = document.getElementById('dcfErrorText');
+      if (errBanner && errText) {
+        errText.textContent = msg;
+        errBanner.style.display = 'flex';
+        errBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    // Bull / bear use the same scenario definitions as the API (GET /api/v1/dcf -> scenarios),
+    // so the buttons and the API agree on what "bull" and "bear" mean.
+    function applyScenario(type) {
+      if (!currentStock || !initialStockParams) return;
+      const s = apiScenarios && apiScenarios[type];
+      const base = initialStockParams;
+      const set = (id, v) => { document.getElementById(id).value = v; };
+
+      if (type === 'base' || !s) {
+        set('sliderGrowth', base.growth);
+        set('sliderMargin', base.margin);
+        set('sliderTerminalG', base.terminalG);
+      } else {
+        set('sliderGrowth', s.growth);
+        set('sliderMargin', s.margin);
+        set('sliderTerminalG', s.terminal_g !== undefined ? s.terminal_g : base.terminalG);
+      }
+      renderDCF();
+      setScenarioButton(type);
+    }
+
+    function resetDCFToDefaults() {
+      if (!initialStockParams) { loadDCFStock(currentStockKey); return; }
+      ['Growth', 'Margin', 'Beta', 'TerminalG', 'Rf', 'ERP'].forEach(k => {
+        const key = { Growth: 'growth', Margin: 'margin', Beta: 'beta', TerminalG: 'terminalG', Rf: 'rf', ERP: 'erp' }[k];
+        document.getElementById('slider' + k).value = initialStockParams[key];
+      });
+      renderDCF();
+      setScenarioButton('base');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('dcfTickerInput');
+      const btn = document.getElementById('dcfSearchBtn');
+      btn.addEventListener('click', () => { if (input.value.trim()) loadDCFStock(input.value); });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && input.value.trim()) loadDCFStock(input.value); });
+
+      document.querySelectorAll('.ticker-btn').forEach(b => b.addEventListener('click', () => loadDCFStock(b.dataset.ticker)));
+      document.querySelectorAll('.scenario-btn').forEach(b => b.addEventListener('click', () => applyScenario(b.dataset.scenario)));
+
+      const params = new URLSearchParams(window.location.search);
+      let sym = params.get('symbol');
+      if (!sym) {
+        try { sym = localStorage.getItem('finresearch_active_ticker'); } catch (_) {}
+      }
+      loadDCFStock(sym || 'RELIANCE');
+    });
+  </script>
+</body>
+</html>

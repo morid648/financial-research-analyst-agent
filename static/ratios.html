@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ratio analysis — FinResearch</title>
+  <meta name="description" content="Sixteen financial ratios across valuation, returns, solvency and cash flow, computed from reported statements.">
+  <script src="/static/js/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css?v=3">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>FinResearch</a>
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="/">Overview</a></li>
+          <li><a href="/dashboard/">Dashboard</a></li>
+          <li><a href="/ratios" aria-current="page">Ratios</a></li>
+          <li><a href="/dcf">DCF model</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/docs">API reference</a></li>
+        </ul>
+      </nav>
+      <div class="header-actions">
+        <button class="btn btn-ghost btn-icon" type="button" data-theme-toggle aria-label="Switch theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page">
+    <div class="container">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Ratio analysis</p>
+          <h1 id="selectedStockTitle" class="page-title">Loading…</h1>
+          <p id="selectedStockSubtitle" class="muted"></p>
+        </div>
+        <div class="stack" style="width: min(420px, 100%);">
+          <div class="search" role="search">
+            <label class="search-field">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <span class="sr-only">Ticker or company</span>
+              <input type="text" id="ratioSearchInput" placeholder="Ticker or company, e.g. TCS" autocomplete="off" spellcheck="false">
+            </label>
+            <button id="ratioSearchBtn" class="btn btn-primary" type="button">Analyze</button>
+          </div>
+          <div class="presets" aria-label="Popular tickers">
+            <button class="ticker-btn" type="button" data-ticker="RELIANCE">RELIANCE</button>
+            <button class="ticker-btn" type="button" data-ticker="TCS">TCS</button>
+            <button class="ticker-btn" type="button" data-ticker="INFY">INFY</button>
+            <button class="ticker-btn" type="button" data-ticker="CANBK">CANBK</button>
+            <button class="ticker-btn" type="button" data-ticker="AAPL">AAPL</button>
+            <button class="ticker-btn" type="button" data-ticker="MSFT">MSFT</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="ratioErrorBanner" class="alert alert-error" role="alert" style="display: none;">
+        <span id="ratioErrorText"></span>
+        <button class="alert-close" type="button" aria-label="Dismiss" onclick="document.getElementById('ratioErrorBanner').style.display='none'">&times;</button>
+      </div>
+      <div id="ratioLoadingBanner" class="alert alert-info" role="status" style="display: none;">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="ratioLoadingText">Fetching statements and computing ratios…</span>
+      </div>
+
+      <div class="ratio-toolbar">
+        <div class="segmented" role="group" aria-label="Filter segments">
+          <button class="segment-tab-btn active" type="button" aria-pressed="true" data-target="all">All</button>
+          <button class="segment-tab-btn" type="button" aria-pressed="false" data-target="valuation">Valuation</button>
+          <button class="segment-tab-btn" type="button" aria-pressed="false" data-target="profitability">Returns</button>
+          <button class="segment-tab-btn" type="button" aria-pressed="false" data-target="solvency">Solvency</button>
+          <button class="segment-tab-btn" type="button" aria-pressed="false" data-target="cashflow">Cash flow</button>
+        </div>
+        <p id="ratioConfidence" class="confidence-note" aria-live="polite"></p>
+      </div>
+
+      <section id="seg-valuation" class="ratio-segment-section" aria-labelledby="seg-valuation-title">
+        <div class="ratio-segment-head">
+          <h2 id="seg-valuation-title">Valuation</h2>
+          <p>Price relative to earnings, book value, operating profit and cash returned.</p>
+        </div>
+        <div class="ratios-grid">
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Price / earnings</span><span id="pePill" class="ratio-metric-pill"></span></div>
+            <div id="peVal" class="ratio-metric-value">—</div>
+            <p id="peExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable under 25×</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Price / book</span><span id="pbPill" class="ratio-metric-pill"></span></div>
+            <div id="pbVal" class="ratio-metric-value">—</div>
+            <p id="pbExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable under 3×</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>EV / EBITDA</span><span id="evPill" class="ratio-metric-pill"></span></div>
+            <div id="evVal" class="ratio-metric-value">—</div>
+            <p id="evExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable under 15×</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Dividend yield</span><span id="divPill" class="ratio-metric-pill"></span></div>
+            <div id="divVal" class="ratio-metric-value">—</div>
+            <p id="divExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable above 1%</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="seg-profitability" class="ratio-segment-section" aria-labelledby="seg-profitability-title">
+        <div class="ratio-segment-head">
+          <h2 id="seg-profitability-title">Returns and margins</h2>
+          <p>How efficiently equity and capital employed turn into operating and net profit.</p>
+        </div>
+        <div class="ratios-grid">
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Return on equity</span><span id="roePill" class="ratio-metric-pill"></span></div>
+            <div id="roeVal" class="ratio-metric-value">—</div>
+            <p id="roeExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable above 15%</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Return on capital employed</span><span id="rocePill" class="ratio-metric-pill"></span></div>
+            <div id="roceVal" class="ratio-metric-value">—</div>
+            <p id="roceExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable above 15%</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Operating margin</span><span id="opmPill" class="ratio-metric-pill"></span></div>
+            <div id="opmVal" class="ratio-metric-value">—</div>
+            <p id="opmExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable above 15%</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Net margin</span><span id="npmPill" class="ratio-metric-pill"></span></div>
+            <div id="npmVal" class="ratio-metric-value">—</div>
+            <p id="npmExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable above 8%</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="seg-solvency" class="ratio-segment-section" aria-labelledby="seg-solvency-title">
+        <div class="ratio-segment-head">
+          <h2 id="seg-solvency-title">Solvency</h2>
+          <p>Leverage, the ability to service debt from operating profit, and short-term liquidity.</p>
+        </div>
+        <div class="ratios-grid">
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Debt / equity</span><span id="dePill" class="ratio-metric-pill"></span></div>
+            <div id="deVal" class="ratio-metric-value">—</div>
+            <p id="deExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable below 0.8</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Interest coverage</span><span id="icrPill" class="ratio-metric-pill"></span></div>
+            <div id="icrVal" class="ratio-metric-value">—</div>
+            <p id="icrExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable above 5×</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Current ratio</span><span id="crPill" class="ratio-metric-pill"></span></div>
+            <div id="crVal" class="ratio-metric-value">—</div>
+            <p id="crExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable between 1.3 and 3.0</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Altman Z-score</span><span id="altmanPill" class="ratio-metric-pill"></span></div>
+            <div id="altmanVal" class="ratio-metric-value">—</div>
+            <p id="altmanExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Safe above 2.99 · distress below 1.81</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="seg-cashflow" class="ratio-segment-section" aria-labelledby="seg-cashflow-title">
+        <div class="ratio-segment-head">
+          <h2 id="seg-cashflow-title">Cash flow and growth</h2>
+          <p>Cash generated after reinvestment, the pace of growth, and working-capital speed.</p>
+        </div>
+        <div class="ratios-grid">
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Free cash flow</span><span id="fcfPill" class="ratio-metric-pill"></span></div>
+            <div id="fcfVal" class="ratio-metric-value">—</div>
+            <p id="fcfExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable when positive</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Revenue growth (YoY)</span><span id="salesPill" class="ratio-metric-pill"></span></div>
+            <div id="salesVal" class="ratio-metric-value">—</div>
+            <p id="salesExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable above 15%</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Earnings growth (YoY)</span><span id="profitPill" class="ratio-metric-pill"></span></div>
+            <div id="profitVal" class="ratio-metric-value">—</div>
+            <p id="profitExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable above 15%</div>
+          </div>
+          <div class="ratio-metric-card">
+            <div class="ratio-metric-label"><span>Cash conversion cycle</span><span id="cccPill" class="ratio-metric-pill"></span></div>
+            <div id="cccVal" class="ratio-metric-value">—</div>
+            <p id="cccExplain" class="ratio-metric-explain"></p>
+            <div class="ratio-benchmark-box">Favourable under 60 days</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>For research and education. Not investment advice. Built by <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">Anshul Chaudhary</a>.</p>
+      <nav aria-label="Footer">
+        <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <a href="https://github.com/morid648" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="/docs">API reference</a>
+        <a href="/health">Service health</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    const PILL_TEXT = { good: 'Favourable', caution: 'Watch', danger: 'Concern' };
+    const METRICS = ['pe', 'pb', 'ev', 'div', 'roe', 'roce', 'opm', 'npm', 'de', 'icr', 'cr', 'altman', 'fcf', 'sales', 'profit', 'ccc'];
+
+    function updateRatioDOM(d) {
+      document.getElementById('selectedStockTitle').textContent = d.title;
+      document.getElementById('selectedStockSubtitle').textContent = d.subtitle;
+
+      METRICS.forEach(m => {
+        const valEl = document.getElementById(m + 'Val');
+        const pillEl = document.getElementById(m + 'Pill');
+        const expEl = document.getElementById(m + 'Explain');
+        if (valEl && d[m]) valEl.textContent = d[m];
+        if (pillEl) {
+          const tone = d[m + 'Pill'];
+          const isNA = !d[m] || String(d[m]).startsWith('N/A');
+          pillEl.className = 'ratio-metric-pill ' + (isNA ? '' : (tone || ''));
+          pillEl.textContent = isNA ? 'No data' : (PILL_TEXT[tone] || '');
+        }
+        if (expEl && d[m + 'Explain']) expEl.textContent = d[m + 'Explain'];
+      });
+
+      const conf = document.getElementById('ratioConfidence');
+      if (conf) {
+        conf.textContent = '';
+        if (d.dataConfidence) {
+          const strong = document.createElement('strong');
+          strong.textContent = `${d.dataConfidence.label} coverage`;
+          conf.append(strong, ` · ${d.dataConfidence.note}`);
+        }
+      }
+    }
+
+    async function loadRatioStock(key) {
+      const sym = (key || '').trim();
+      if (!sym) return;
+
+      const errBanner = document.getElementById('ratioErrorBanner');
+      const errText = document.getElementById('ratioErrorText');
+      const loadingBanner = document.getElementById('ratioLoadingBanner');
+      const searchBtn = document.getElementById('ratioSearchBtn');
+      const input = document.getElementById('ratioSearchInput');
+
+      if (errBanner) errBanner.style.display = 'none';
+      if (loadingBanner) loadingBanner.style.display = 'flex';
+      if (searchBtn) searchBtn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/v1/ratios/${encodeURIComponent(sym)}`);
+        if (!res.ok) {
+          let errorMsg = `Couldn't find '${sym}'. Try an exchange ticker such as AAPL, RELIANCE.NS or TCS.NS.`;
+          try {
+            const errJson = await res.json();
+            errorMsg = (errJson && (errJson.detail || errJson.error)) || errorMsg;
+          } catch (_) {}
+          if (errBanner && errText) {
+            errText.textContent = errorMsg;
+            errBanner.style.display = 'flex';
+          }
+          return;
+        }
+
+        const data = await res.json();
+        updateRatioDOM(data);
+        const actualSym = data.symbol || sym;
+        if (input) input.value = actualSym;
+        window.history.replaceState(null, '', `/ratios?symbol=${encodeURIComponent(actualSym)}`);
+
+        try { localStorage.setItem('finresearch_active_ticker', actualSym); } catch (_) {}
+
+        document.querySelectorAll('a[href^="/dcf"]').forEach(a => { a.href = `/dcf?symbol=${encodeURIComponent(actualSym)}`; });
+        document.querySelectorAll('a[href^="/ratios"]').forEach(a => { a.href = `/ratios?symbol=${encodeURIComponent(actualSym)}`; });
+        document.querySelectorAll('a').forEach(a => {
+          const href = a.getAttribute('href') || '';
+          if (href === '/' || href.startsWith('/?symbol=')) a.href = `/?symbol=${encodeURIComponent(actualSym)}#studio`;
+        });
+
+        const upperSym = actualSym.toUpperCase();
+        document.querySelectorAll('.ticker-btn').forEach(btn => {
+          const t = (btn.dataset.ticker || '').toUpperCase();
+          btn.classList.toggle('active', upperSym === t || upperSym.startsWith(t + '.'));
+        });
+      } catch (err) {
+        console.error('Error loading ratios:', err);
+        if (errBanner && errText) {
+          errText.textContent = `Couldn't reach the ratio service. Check the ticker '${sym}' and try again.`;
+          errBanner.style.display = 'flex';
+        }
+      } finally {
+        if (loadingBanner) loadingBanner.style.display = 'none';
+        if (searchBtn) searchBtn.disabled = false;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      let sym = params.get('symbol');
+      if (!sym) {
+        try { sym = localStorage.getItem('finresearch_active_ticker'); } catch (_) {}
+      }
+      loadRatioStock(sym || 'RELIANCE');
+
+      document.querySelectorAll('.segment-tab-btn').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.segment-tab-btn').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-pressed', 'false'); });
+          tab.classList.add('active');
+          tab.setAttribute('aria-pressed', 'true');
+          const target = tab.dataset.target;
+          ['valuation', 'profitability', 'solvency', 'cashflow'].forEach(s => {
+            const el = document.getElementById('seg-' + s);
+            if (el) el.style.display = (target === 'all' || target === s) ? '' : 'none';
+          });
+        });
+      });
+
+      document.querySelectorAll('.ticker-btn').forEach(btn => {
+        btn.addEventListener('click', () => loadRatioStock(btn.dataset.ticker));
+      });
+
+      const input = document.getElementById('ratioSearchInput');
+      const btn = document.getElementById('ratioSearchBtn');
+      btn.addEventListener('click', () => { if (input.value.trim()) loadRatioStock(input.value); });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && input.value.trim()) loadRatioStock(input.value); });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+"""
+Configuration management for the Financial Research Analyst Agent.
+
+This module handles loading and validating configuration from environment
+variables and configuration files.
+"""
+
+import os
+from functools import lru_cache
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from pydantic import ConfigDict, Field
+from pydantic_settings import BaseSettings
+
+
+class LLMSettings(BaseSettings):
+    """LLM-related configuration settings."""
+
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # Provider selection (ollama, openai, anthropic, lmstudio, vllm, groq)
+    provider: str = Field(default="ollama", validation_alias="LLM_PROVIDER")
+
+    # Open source / local LLM settings (default)
+    ollama_base_url: str = Field(
+        default="http://localhost:11434", validation_alias="OLLAMA_BASE_URL"
+    )
+    ollama_model: str = Field(default="llama4:latest", validation_alias="OLLAMA_MODEL")
+
+    # LM Studio settings
+    lmstudio_base_url: str = Field(
+        default="http://localhost:1234/v1", validation_alias="LMSTUDIO_BASE_URL"
+    )
+    lmstudio_model: str = Field(default="local-model", validation_alias="LMSTUDIO_MODEL")
+
+    # vLLM settings
+    vllm_base_url: str = Field(default="http://localhost:8000/v1", validation_alias="VLLM_BASE_URL")
+    vllm_model: str = Field(
+        default="meta-llama/Llama-3.2-8B-Instruct", validation_alias="VLLM_MODEL"
+    )
+
+    # Groq settings (free tier available)
+    groq_api_key: str = Field(default="", validation_alias="GROQ_API_KEY")
+    groq_model: str = Field(default="llama-3.3-70b-versatile", validation_alias="GROQ_MODEL")
+
+    # Commercial API keys (optional)
+    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
+
+    # General LLM settings
+    model: str = Field(default="llama4:latest", validation_alias="LLM_MODEL")
+    temperature: float = Field(default=0.1, validation_alias="LLM_TEMPERATURE")
+    max_tokens: int = Field(default=4096, validation_alias="LLM_MAX_TOKENS")
+
+
+class DataAPISettings(BaseSettings):
+    """Financial data API configuration settings."""
+
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    alpha_vantage_api_key: str = Field(default="", validation_alias="ALPHA_VANTAGE_API_KEY")
+    finnhub_api_key: str = Field(default="", validation_alias="FINNHUB_API_KEY")
+    news_api_key: str = Field(default="", validation_alias="NEWS_API_KEY")
+    fmp_api_key: str = Field(default="", validation_alias="FMP_API_KEY")
+    fred_api_key: str = Field(default="", validation_alias="FRED_API_KEY")
+
+
+class DatabaseSettings(BaseSettings):
+    """Database configuration settings."""
+
+    database_url: str = Field(default="sqlite:///./data/financial_agent.db", env="DATABASE_URL")
+    redis_url: str = Field(default="redis://localhost:6379", env="REDIS_URL")
+    redis_password: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
+    cache_ttl_seconds: int = Field(default=3600, env="CACHE_TTL_SECONDS")
+
+    model_config = ConfigDict(env_prefix="")
+
+
+class VectorStoreSettings(BaseSettings):
+    """Vector store configuration settings."""
+
+    # Vector store provider (chroma, qdrant, milvus, weaviate)
+    provider: str = Field(default="chroma", env="VECTOR_STORE_PROVIDER")
+    chroma_persist_dir: str = Field(default="./data/chroma", env="CHROMA_PERSIST_DIR")
+
+    # Embedding provider (sentence-transformers, huggingface, ollama, openai)
+    embedding_provider: str = Field(default="sentence-transformers", env="EMBEDDING_PROVIDER")
+
+    # Open source embedding models (default)
+    sentence_transformer_model: str = Field(
+        default="all-MiniLM-L6-v2", env="SENTENCE_TRANSFORMER_MODEL"
+    )
+    hf_embedding_model: str = Field(default="BAAI/bge-small-en-v1.5", env="HF_EMBEDDING_MODEL")
+    ollama_embedding_model: str = Field(default="nomic-embed-text", env="OLLAMA_EMBEDDING_MODEL")
+
+    # Commercial embedding (optional)
+    embedding_model: str = Field(default="all-MiniLM-L6-v2", env="EMBEDDING_MODEL")
+
+    model_config = ConfigDict(env_prefix="")
+
+
+class AgentSettings(BaseSettings):
+    """Agent behavior configuration settings."""
+
+    max_iterations: int = Field(default=10, env="AGENT_MAX_ITERATIONS")
+    timeout_seconds: int = Field(default=300, env="AGENT_TIMEOUT_SECONDS")
+    enable_memory: bool = Field(default=True, env="ENABLE_MEMORY")
+
+    # F4 fix: confidence weights read from config/agents.yaml via this field.
+    # Defaults mirror the YAML values (recommendation.confidence_weights) so the
+    # system works out-of-the-box without a .env override, but changing agents.yaml
+    # will now take effect at runtime — see prd.md §4 F4 and tasks.md Phase 5.
+    confidence_weights: Dict[str, float] = Field(
+        default_factory=lambda: {
+            "technical": 0.25,
+            "fundamental": 0.35,
+            "sentiment": 0.20,
+            "risk": 0.20,
+        }
+    )
+
+    model_config = ConfigDict(env_prefix="")
+
+
+
+class APISettings(BaseSettings):
+    """API server configuration settings."""
+
+    host: str = Field(default="0.0.0.0", env="API_HOST")
+    port: int = Field(default=8000, env="API_PORT")
+    reload: bool = Field(default=True, env="API_RELOAD")
+    cors_origins: List[str] = Field(
+        default=["http://localhost:3000", "http://localhost:8080"], env="CORS_ORIGINS"
+    )
+
+    model_config = ConfigDict(env_prefix="")
+
+
+class Settings(BaseSettings):
+    """Main application settings combining all sub-settings."""
+
+    model_config = ConfigDict(
+        extra="ignore", env_file=".env", env_file_encoding="utf-8", case_sensitive=False
+    )
+
+    # Application
+    debug: bool = Field(default=False, env="DEBUG")
+    log_level: str = Field(default="INFO", env="LOG_LEVEL")
+    log_file: str = Field(default="./logs/app.log", env="LOG_FILE")
+    secret_key: str = Field(default="changeme", env="SECRET_KEY")
+
+    # Sub-settings
+    llm: LLMSettings = Field(default_factory=LLMSettings)
+    data_api: DataAPISettings = Field(default_factory=DataAPISettings)
+    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    vector_store: VectorStoreSettings = Field(default_factory=VectorStoreSettings)
+    agent: AgentSettings = Field(default_factory=AgentSettings)
+    api: APISettings = Field(default_factory=APISettings)
+
+    # Rate limiting
+    rate_limit_requests: int = Field(default=100, env="RATE_LIMIT_REQUESTS")
+    rate_limit_window_seconds: int = Field(default=60, env="RATE_LIMIT_WINDOW_SECONDS")
+
+    @property
+    def project_root(self) -> Path:
+        """Get the project root directory."""
+        return Path(__file__).parent.parent
+
+    @property
+    def data_dir(self) -> Path:
+        """Get the data directory path."""
+        data_path = self.project_root / "data"
+        data_path.mkdir(parents=True, exist_ok=True)
+        return data_path
+
+    @property
+    def logs_dir(self) -> Path:
+        """Get the logs directory path."""
+        logs_path = self.project_root / "logs"
+        logs_path.mkdir(parents=True, exist_ok=True)
+        return logs_path
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """
+    Get cached application settings.
+
+    Returns:
+        Settings: Application settings instance
+    """
+    return Settings()
+
+
+# Convenience function to reload settings
+def reload_settings() -> Settings:
+    """
+    Reload settings by clearing the cache.
+
+    Returns:
+        Settings: Fresh application settings instance
+    """
+    get_settings.cache_clear()
+    return get_settings()
+
+
+# Export settings instance
+settings = get_settings()

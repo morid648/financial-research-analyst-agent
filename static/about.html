@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About — FinResearch</title>
+  <meta name="description" content="How FinResearch works, how to use it, and what every financial term on the site means, in plain language.">
+  <script src="/static/js/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css?v=3">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>FinResearch</a>
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="/">Overview</a></li>
+          <li><a href="/dashboard/">Dashboard</a></li>
+          <li><a href="/ratios">Ratios</a></li>
+          <li><a href="/dcf">DCF model</a></li>
+          <li><a href="/about" aria-current="page">About</a></li>
+          <li><a href="/docs">API reference</a></li>
+        </ul>
+      </nav>
+      <div class="header-actions">
+        <button class="btn btn-ghost btn-icon" type="button" data-theme-toggle aria-label="Switch theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page">
+    <div class="container">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">About</p>
+          <h1 class="page-title">How it works, in plain words</h1>
+          <p class="lede">What each page shows, how the numbers are made, and what the jargon means. No finance background needed.</p>
+        </div>
+      </div>
+
+      <div class="about-layout">
+        <nav class="toc" aria-label="On this page">
+          <ol>
+            <li><a href="#what">What this is</a></li>
+            <li><a href="#use">How to use it</a></li>
+            <li><a href="#how">How the numbers are made</a></li>
+            <li><a href="#terms-valuation">Terms: valuation</a></li>
+            <li><a href="#terms-health">Terms: health</a></li>
+            <li><a href="#terms-dcf">Terms: DCF</a></li>
+            <li><a href="#terms-market">Terms: price and risk</a></li>
+            <li><a href="#limits">Limits</a></li>
+            <li><a href="#author">Built by</a></li>
+          </ol>
+        </nav>
+
+        <div class="prose">
+          <section id="what" aria-labelledby="what-h">
+            <h2 id="what-h">What this is</h2>
+            <p>FinResearch pulls a company's latest price, financial statements and news, then turns them into a set of numbers that answer three questions: <strong>Is the business healthy?</strong> <strong>Is the share price cheap or expensive compared to what the business earns?</strong> <strong>How bumpy has the ride been?</strong></p>
+            <p>It works for Indian stocks (NSE and BSE) and US stocks. Everything is calculated fresh each time you search; nothing comes from a pre-written table.</p>
+          </section>
+
+          <section id="use" aria-labelledby="use-h">
+            <h2 id="use-h">How to use it</h2>
+            <ol class="steps-list">
+              <li><strong>Search a company.</strong> Type a ticker like <code>TCS</code>, <code>RELIANCE</code> or <code>AAPL</code>, or a company name. For Indian stocks the site tries NSE first, then BSE. The company you pick is remembered as you move between pages.</li>
+              <li><strong>Start on the Overview.</strong> You'll see the price, a ten-day chart, a quick signal and four headline figures. It's a first look, not a verdict.</li>
+              <li><strong>Check its health on Ratios.</strong> Sixteen ratios, grouped into four themes. Each has a short explanation and a label: <em>Favourable</em>, <em>Watch</em> or <em>Concern</em>. "No data" means the company didn't report what's needed, so we don't guess.</li>
+              <li><strong>Estimate its worth on the DCF model.</strong> The model starts with the company's own figures. Drag any slider to test your own view; press <em>Bear</em> or <em>Bull</em> to see a cautious or hopeful case; press <em>Reset</em> to go back.</li>
+              <li><strong>Look at risk and news on the Dashboard.</strong> A year of price history, how volatile it's been, the worst typical daily loss, and recent headlines scored as positive or negative.</li>
+            </ol>
+            <p>Shortcuts: on the Dashboard, press <code>Ctrl K</code> (<code>⌘K</code> on Mac) to jump to a ticker. The half-circle button at the top right switches between light and dark.</p>
+          </section>
+
+          <section id="how" aria-labelledby="how-h">
+            <h2 id="how-h">How the numbers are made</h2>
+            <p><strong>Data.</strong> Prices, financial statements and news come from Yahoo Finance by default. Other providers can be switched on by whoever runs the site.</p>
+            <p><strong>Ratios</strong> are simple divisions using the most recent annual statements, for example profit divided by revenue. Where a figure is missing, the ratio shows N/A.</p>
+            <p><strong>The DCF model</strong> projects five years of cash the business could generate, converts that future cash into today's money, and divides by the number of shares. The steps are laid out line by line on the DCF page so you can check every one.</p>
+            <p><strong>News sentiment</strong> uses FinBERT, a language model trained on financial text, to read each headline and score it from −1 (negative) to +1 (positive).</p>
+            <p><strong>The signal</strong> on the Overview and Dashboard is a simple rule, not an AI prediction. On the Overview it looks at the P/E ratio and today's price move; on the Dashboard it looks at RSI and MACD. It's there to summarise, not to tell you what to do.</p>
+          </section>
+
+          <section id="terms-valuation" aria-labelledby="tv-h">
+            <h2 id="tv-h">Terms: is the price cheap or expensive?</h2>
+            <dl class="glossary">
+              <div><dt>P/E <small>Price to earnings</small></dt><dd>How many years of today's profit you pay for with the share price. A P/E of 20 means you pay ₹20 for every ₹1 of yearly profit. Lower is cheaper. Marked favourable under 25.</dd></div>
+              <div><dt>P/B <small>Price to book</small></dt><dd>Share price compared with what the company would be worth on paper if it sold everything and paid its debts. Under 1 means the market values it below its assets. Favourable under 3.</dd></div>
+              <div><dt>EV/EBITDA <small>Enterprise multiple</small></dt><dd>Like P/E, but it counts debt too, and uses profit before interest, tax and accounting write-offs. Useful for comparing companies with different amounts of borrowing. Favourable under 15.</dd></div>
+              <div><dt>Dividend yield</dt><dd>Cash paid to shareholders each year as a percentage of the share price. 1% means ₹1 a year for every ₹100 invested. Favourable above 1%.</dd></div>
+              <div><dt>Market cap</dt><dd>Share price × number of shares. What the market says the whole company is worth.</dd></div>
+            </dl>
+          </section>
+
+          <section id="terms-health" aria-labelledby="th-h">
+            <h2 id="th-h">Terms: is the business healthy?</h2>
+            <dl class="glossary">
+              <div><dt>Operating margin</dt><dd>Of every ₹100 in sales, how much is left after running the business, before interest and tax. Favourable above 15%.</dd></div>
+              <div><dt>Net margin</dt><dd>Of every ₹100 in sales, how much is final profit after everything, including tax and interest. Favourable above 8%.</dd></div>
+              <div><dt>ROE <small>Return on equity</small></dt><dd>Profit made for every ₹100 of shareholders' money in the business. Favourable above 15%.</dd></div>
+              <div><dt>ROCE <small>Return on capital employed</small></dt><dd>Like ROE, but counts borrowed money too, so it shows how well the company uses all the money it runs on. Operating profit ÷ (total assets − short-term liabilities). Favourable above 15%.</dd></div>
+              <div><dt>Debt / equity</dt><dd>How much the company has borrowed compared with what shareholders own. 0.5 means ₹50 of debt for every ₹100 owned. Favourable below 0.8.</dd></div>
+              <div><dt>Interest coverage</dt><dd>How many times over operating profit can pay the interest bill. 10× means profit could pay interest ten times. Favourable above 5×; below 1.5× is a warning sign.</dd></div>
+              <div><dt>Current ratio</dt><dd>Money coming in within a year (cash, what customers owe, stock) compared with bills due within a year. Between 1.3 and 3 is comfortable. Very high values can mean cash sitting idle.</dd></div>
+              <div><dt>Altman Z-score</dt><dd>A formula from 1968 that combines five balance-sheet measures to estimate the risk of bankruptcy. Above 2.99 is the safe zone, below 1.81 the distress zone, in between is grey. It was built for manufacturers, so treat it loosely for banks.</dd></div>
+              <div><dt>Free cash flow</dt><dd>Cash left over after running the business and paying for new equipment and buildings. Positive means the business funds itself.</dd></div>
+              <div><dt>Revenue / earnings growth</dt><dd>How much sales or profit changed compared with the same period a year earlier. Favourable above 15%.</dd></div>
+              <div><dt>Cash conversion cycle</dt><dd>Days between paying for stock and collecting cash from customers. Shorter is better; negative means customers pay before suppliers are paid. Favourable under 60 days.</dd></div>
+            </dl>
+          </section>
+
+          <section id="terms-dcf" aria-labelledby="td-h">
+            <h2 id="td-h">Terms: the DCF model</h2>
+            <p>DCF stands for <strong>discounted cash flow</strong>. The idea: a business is worth the cash it will produce in the future, but money tomorrow is worth less than money today, so future cash is "discounted" back to today's value.</p>
+            <dl class="glossary" style="margin-top: var(--s-5);">
+              <div><dt>Revenue growth</dt><dd>How fast sales are assumed to grow each year for the next five years. Starts from the company's latest reported growth.</dd></div>
+              <div><dt>Operating margin</dt><dd>The share of sales kept as operating profit, assumed constant over the five years. Starts from the company's latest reported margin.</dd></div>
+              <div><dt>NOPAT</dt><dd>Operating profit after tax. Tax is assumed at 25% for Indian companies and 21% for US companies.</dd></div>
+              <div><dt>D&amp;A, capex, working capital</dt><dd>Depreciation is added back (it's an accounting charge, not cash). Capital expenditure (new equipment) and extra working capital (stock and customer credit) are taken away. All three come from the company's own last cash flow statement where available.</dd></div>
+              <div><dt>Free cash flow (UFCF)</dt><dd>NOPAT + D&amp;A − capex − working capital change. The cash the business produces each year.</dd></div>
+              <div><dt>WACC <small>Discount rate</small></dt><dd>The yearly return investors expect for the risk they take. It blends the cost of shareholders' money and the cost of debt, weighted by how much of each the company uses. Higher WACC means future cash is worth less today.</dd></div>
+              <div><dt>Risk-free rate</dt><dd>What a government bond pays. Defaults: 6.8% for India, 4.2% for the US.</dd></div>
+              <div><dt>Beta</dt><dd>How much the share tends to move compared with the whole market. 1 moves with the market; 1.5 swings 50% more; 0.5 swings half as much.</dd></div>
+              <div><dt>Equity risk premium</dt><dd>The extra return investors want for owning shares instead of bonds. Defaults: 5.5% for India, 5.0% for the US. Cost of equity = risk-free rate + beta × this premium.</dd></div>
+              <div><dt>Terminal growth</dt><dd>The steady growth assumed forever after year five. Kept low (2.5% US, 4.5% India) because no company outgrows the economy forever.</dd></div>
+              <div><dt>Terminal value</dt><dd>The value of all cash after year five, rolled into one number. It is often most of the total, which is why terminal growth and WACC matter so much.</dd></div>
+              <div><dt>Enterprise value → equity value</dt><dd>Adding up all discounted cash gives the value of the whole business. Subtract debt and add cash to get what belongs to shareholders, then divide by the number of shares.</dd></div>
+              <div><dt>Bear / Base / Bull</dt><dd>Base uses the company's own figures. Bear halves the growth rate, then takes off 2 more points, and cuts the margin by 3 points. Bull raises growth by 30% plus 2 points and adds 3 points of margin. Terminal growth moves down or up by 0.5 points.</dd></div>
+              <div><dt>Sensitivity grid</dt><dd>The value per share recalculated for slightly different WACC and terminal growth. If the numbers swing a lot across the grid, the estimate is fragile.</dd></div>
+            </dl>
+          </section>
+
+          <section id="terms-market" aria-labelledby="tm-h">
+            <h2 id="tm-h">Terms: price and risk</h2>
+            <dl class="glossary">
+              <div><dt>RSI <small>Relative strength index</small></dt><dd>A 0–100 score of recent price momentum over 14 days. Above 70 is called overbought (it's risen fast); below 30 oversold (it's fallen fast).</dd></div>
+              <div><dt>MACD</dt><dd>Compares a short-term and a long-term average price (12 and 26 days). When the short-term one pulls ahead, momentum is turning up.</dd></div>
+              <div><dt>Moving average (SMA)</dt><dd>The average closing price over the last 50 or 200 days. Price above the 200-day average is usually read as a longer-term uptrend.</dd></div>
+              <div><dt>Volatility</dt><dd>How much the price typically jumps around, expressed per year. Under 20% is calm, over 40% is very bumpy.</dd></div>
+              <div><dt>VaR, 95% daily <small>Value at risk</small></dt><dd>On 95 of every 100 trading days in the past year, the daily loss was no worse than this. It says nothing about the other 5 days, which can be much worse.</dd></div>
+              <div><dt>Sharpe ratio</dt><dd>Return earned per unit of bumpiness over the past year. Higher means a smoother ride for the return you got. Calculated here without subtracting a risk-free rate.</dd></div>
+              <div><dt>News sentiment</dt><dd>The average FinBERT score of recent headlines, from −1 (very negative) to +1 (very positive). Each headline's own score is listed on the Dashboard.</dd></div>
+            </dl>
+          </section>
+
+          <section id="limits" aria-labelledby="limits-h">
+            <h2 id="limits-h">Limits</h2>
+            <p>Every number here depends on the data the company has reported and on the assumptions shown. Small companies and banks often report less, so more figures will read N/A. The DCF model is only as good as its inputs: a few points of growth or discount rate can change the answer a lot, which is exactly what the sensitivity grid is for.</p>
+            <p>Figures can differ from other sites because they may use different reporting periods or adjust numbers differently.</p>
+            <p><strong>This site is for learning and research. It is not investment advice.</strong></p>
+          </section>
+
+          <section id="author" aria-labelledby="author-h">
+            <h2 id="author-h">Built by</h2>
+            <p>FinResearch was built by <strong>Anshul Chaudhary</strong> as a transparent, auditable equity research and financial analytics platform.</p>
+            <p>
+              Connect: <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">LinkedIn</a> · 
+              <a href="https://github.com/morid648" target="_blank" rel="noopener noreferrer">GitHub</a>
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>For research and education. Not investment advice. Built by <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">Anshul Chaudhary</a>.</p>
+      <nav aria-label="Footer">
+        <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <a href="https://github.com/morid648" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="/docs">API reference</a>
+        <a href="/health">Service health</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

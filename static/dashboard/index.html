@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — FinResearch</title>
+  <meta name="description" content="Live technicals, historical risk, DCF value and scored news for one ticker." />
+  <script src="/static/js/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css?v=3" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>FinResearch</a>
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="/">Overview</a></li>
+          <li><a href="/dashboard/" aria-current="page">Dashboard</a></li>
+          <li><a href="/ratios">Ratios</a></li>
+          <li><a href="/dcf">DCF model</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/docs">API reference</a></li>
+        </ul>
+      </nav>
+      <div class="header-actions">
+        <button class="btn btn-ghost btn-icon" type="button" data-theme-toggle aria-label="Switch theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page">
+    <div class="container">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Dashboard</p>
+          <h1 class="page-title">Technicals, risk and news</h1>
+          <p class="muted">Computed on request from a year of daily prices, the DCF model and recent headlines.</p>
+        </div>
+        <div class="stack" style="width: min(420px, 100%);">
+          <div class="search" role="search">
+            <label class="search-field">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <span class="sr-only">Ticker or company</span>
+              <input type="text" id="ticker-search-input" placeholder="Ticker, e.g. MSFT" autocomplete="off" spellcheck="false" />
+              <kbd id="kbd-hint" class="kbd-shortcut" aria-hidden="true">Ctrl K</kbd>
+            </label>
+            <button class="btn btn-primary" id="search-submit-btn" type="button">Analyze</button>
+          </div>
+          <div class="presets" aria-label="Watchlist">
+            <button class="chip-btn" type="button" data-ticker="AAPL">AAPL</button>
+            <button class="chip-btn" type="button" data-ticker="NVDA">NVDA</button>
+            <button class="chip-btn" type="button" data-ticker="MSFT">MSFT</button>
+            <button class="chip-btn" type="button" data-ticker="RELIANCE.NS">RELIANCE</button>
+            <button class="chip-btn" type="button" data-ticker="TCS.NS">TCS</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="figures" id="metrics-summary-row" aria-label="Key figures" aria-live="polite">
+        <div class="figure">
+          <div class="figure-label">Price</div>
+          <div class="figure-value"><span id="val-price">—</span><span class="delta-badge neutral" id="val-price-change"></span></div>
+        </div>
+        <div class="figure">
+          <div class="figure-label">Signal</div>
+          <div class="figure-value"><span id="val-consensus">—</span><span class="delta-badge neutral" id="val-consensus-score"></span></div>
+        </div>
+        <div class="figure">
+          <div class="figure-label">RSI (14)</div>
+          <div class="figure-value"><span id="val-rsi">—</span><span class="delta-badge neutral" id="val-rsi-signal"></span></div>
+        </div>
+        <div class="figure">
+          <div class="figure-label">Trailing P/E</div>
+          <div class="figure-value"><span id="val-pe">—</span><span class="delta-badge neutral" id="val-pe-signal"></span></div>
+        </div>
+        <div class="figure">
+          <div class="figure-label">VaR, 95% daily</div>
+          <div class="figure-value"><span id="val-var">—</span><span class="delta-badge neutral" id="val-risk-tier"></span></div>
+        </div>
+      </section>
+
+      <div class="dash-grid">
+        <section class="panel" aria-labelledby="chart-symbol-title">
+          <div class="panel-head" style="align-items: center;">
+            <h2 id="chart-symbol-title">—</h2>
+            <div class="segmented" role="group" aria-label="Chart range">
+              <button class="timeframe-btn" type="button" aria-pressed="false" data-range="1M">1M</button>
+              <button class="timeframe-btn active" type="button" aria-pressed="true" data-range="3M">3M</button>
+              <button class="timeframe-btn" type="button" aria-pressed="false" data-range="6M">6M</button>
+              <button class="timeframe-btn" type="button" aria-pressed="false" data-range="1Y">1Y</button>
+              <button class="timeframe-btn" type="button" aria-pressed="false" data-range="ALL">5Y</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="chart-container">
+              <canvas id="main-price-chart" role="img" aria-label="Daily closing price for the selected range"></canvas>
+              <div id="chart-empty" class="chart-empty">Loading price history…</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="synthesis-title">
+          <div class="panel-head"><h2 id="synthesis-title">Synthesis</h2></div>
+          <div class="panel-body">
+            <div class="eyebrow">Signal</div>
+            <div class="consensus-verdict hold" id="consensus-verdict-display">—</div>
+            <div class="meter" aria-hidden="true"><div id="consensus-progress-bar" style="width: 0%;"></div></div>
+            <div class="meter-scale" aria-hidden="true"><span>Sell 0.0</span><span>Hold 0.5</span><span>Buy 1.0</span></div>
+            <ul class="kv">
+              <li><span>DCF value per share</span><span id="dcf-target-val">—</span></li>
+              <li><span>Sharpe ratio, 1Y</span><span id="sharpe-ratio-val">—</span></li>
+              <li><span>News sentiment</span><span id="news-sentiment-val">—</span></li>
+            </ul>
+            <p class="side-note">The signal is a rule on RSI and MACD, not a recommendation.</p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="trace-title">
+          <div class="panel-head">
+            <h2 id="trace-title">How these figures were computed</h2>
+            <span class="subtle" id="execution-time-label"></span>
+          </div>
+          <div class="panel-body" style="padding-top: var(--s-2); padding-bottom: var(--s-2);">
+            <div class="steps" id="agent-reasoning-feed">
+              <div class="reasoning-step-item active">
+                <button class="reasoning-step-header" type="button" aria-expanded="true" aria-controls="step1-content">
+                  <span class="agent-tag"><span class="step-no">01</span>Data</span>
+                  <span class="delta-badge neutral" id="step1-badge">—</span>
+                </button>
+                <div class="reasoning-step-content" id="step1-content">Fetching market data…</div>
+              </div>
+              <div class="reasoning-step-item">
+                <button class="reasoning-step-header" type="button" aria-expanded="false" aria-controls="step2-content">
+                  <span class="agent-tag"><span class="step-no">02</span>Technicals</span>
+                  <span class="delta-badge neutral" id="step2-badge">—</span>
+                </button>
+                <div class="reasoning-step-content" id="step2-content">Calculating indicators…</div>
+              </div>
+              <div class="reasoning-step-item">
+                <button class="reasoning-step-header" type="button" aria-expanded="false" aria-controls="step3-content">
+                  <span class="agent-tag"><span class="step-no">03</span>Valuation</span>
+                  <span class="delta-badge neutral" id="step3-badge">—</span>
+                </button>
+                <div class="reasoning-step-content" id="step3-content">Running the DCF model…</div>
+              </div>
+              <div class="reasoning-step-item">
+                <button class="reasoning-step-header" type="button" aria-expanded="false" aria-controls="step4-content">
+                  <span class="agent-tag"><span class="step-no">04</span>Risk</span>
+                  <span class="delta-badge neutral" id="step4-badge">—</span>
+                </button>
+                <div class="reasoning-step-content" id="step4-content">Calculating volatility and VaR…</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="news-title">
+          <div class="panel-head"><h2 id="news-title">Recent news</h2><span class="subtle">Scored per article</span></div>
+          <div class="panel-body" id="news-stream-container">
+            <p class="subtle">Loading headlines…</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>For research and education. Not investment advice. Built by <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">Anshul Chaudhary</a>.</p>
+      <nav aria-label="Footer">
+        <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <a href="https://github.com/morid648" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="/docs">API reference</a>
+        <a href="/health">Service health</a>
+      </nav>
+    </div>
+  </footer>
+
+  <div class="modal-backdrop" id="command-palette-modal" role="dialog" aria-modal="true" aria-label="Quick search">
+    <div class="command-palette-card">
+      <label class="command-input-row">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span class="sr-only">Ticker</span>
+        <input type="text" id="command-input" class="command-input" placeholder="Type a ticker and press Enter" autocomplete="off" spellcheck="false" />
+        <span class="kbd-shortcut">Esc</span>
+      </label>
+      <div class="command-results-list" id="command-results">
+        <button class="command-item" type="button" data-ticker="AAPL"><span>Apple <span class="mono subtle">AAPL</span></span></button>
+        <button class="command-item" type="button" data-ticker="NVDA"><span>NVIDIA <span class="mono subtle">NVDA</span></span></button>
+        <button class="command-item" type="button" data-ticker="MSFT"><span>Microsoft <span class="mono subtle">MSFT</span></span></button>
+        <button class="command-item" type="button" data-ticker="RELIANCE.NS"><span>Reliance Industries <span class="mono subtle">RELIANCE.NS</span></span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
+
+  <script src="app.js?v=7"></script>
+</body>
+</html>

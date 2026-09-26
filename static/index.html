@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinResearch — Equity research workspace</title>
+  <meta name="description" content="Live price, fundamentals, a discounted cash flow model and risk metrics for listed equities in India and the US.">
+  <script src="/static/js/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css?v=3">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>FinResearch</a>
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="/" aria-current="page">Overview</a></li>
+          <li><a href="/dashboard/">Dashboard</a></li>
+          <li><a href="/ratios">Ratios</a></li>
+          <li><a href="/dcf">DCF model</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/docs">API reference</a></li>
+        </ul>
+      </nav>
+      <div class="header-actions">
+        <button class="btn btn-ghost btn-icon" type="button" data-theme-toggle aria-label="Switch theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="intro">
+      <div class="container">
+        <p class="eyebrow">Equity research workspace</p>
+        <h1 class="display">Fundamentals, valuation and risk for any listed company.</h1>
+        <p class="lede">Search a ticker to see its live price, sixteen ratios computed from reported statements, and a discounted cash flow model you can adjust line by line.</p>
+        <div class="intro-actions">
+          <a href="#studio" class="btn btn-primary">Analyze a ticker</a>
+          <a href="/dcf" class="btn">Open the DCF model</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="studio" class="container" aria-labelledby="studio-title">
+      <h2 id="studio-title" class="sr-only">Quick analysis</h2>
+      <div class="panel studio">
+        <div class="studio-toolbar">
+          <div class="search" role="search">
+            <label class="search-field">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <span class="sr-only">Ticker or company</span>
+              <input type="text" id="studioTickerInput" value="RELIANCE" placeholder="Ticker or company, e.g. NVDA" autocomplete="off" spellcheck="false">
+            </label>
+            <button id="studioSearchBtn" class="btn btn-primary" type="button">Run</button>
+          </div>
+          <div class="presets" aria-label="Popular tickers">
+            <button class="ticker-btn active" type="button" data-ticker="RELIANCE">RELIANCE</button>
+            <button class="ticker-btn" type="button" data-ticker="TCS">TCS</button>
+            <button class="ticker-btn" type="button" data-ticker="INFY">INFY</button>
+            <button class="ticker-btn" type="button" data-ticker="CANBK">CANBK</button>
+            <button class="ticker-btn" type="button" data-ticker="AAPL">AAPL</button>
+            <button class="ticker-btn" type="button" data-ticker="NVDA">NVDA</button>
+          </div>
+        </div>
+
+        <div id="studioErrorBanner" class="alert alert-error" role="alert" style="display: none;">
+          <span id="studioErrorText"></span>
+          <button class="alert-close" type="button" aria-label="Dismiss" onclick="document.getElementById('studioErrorBanner').style.display='none'">&times;</button>
+        </div>
+        <div id="studioLoadingBanner" class="alert alert-info" role="status" style="display: none;">
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="studioLoadingText">Fetching quote…</span>
+        </div>
+
+        <div class="studio-body">
+          <div class="studio-main">
+            <div class="quote-head">
+              <div>
+                <div id="studioHeroSymbol" class="quote-symbol">—</div>
+                <h3 id="studioHeroName" class="quote-name">Loading…</h3>
+              </div>
+              <div class="quote-price">
+                <div id="studioHeroPrice" class="stock-hero-price">—</div>
+                <div id="studioHeroChange" class="stock-hero-change"></div>
+              </div>
+            </div>
+
+            <div class="chart-canvas-box">
+              <canvas id="stockChart" role="img" aria-label="Closing price over the last ten sessions"></canvas>
+            </div>
+
+            <div id="studioVerdict" class="verdict">
+              <div>
+                <div class="eyebrow">Signal</div>
+                <div id="studioRecSignal" class="verdict-signal">—</div>
+              </div>
+              <div id="studioRecConfidence" class="verdict-confidence"></div>
+            </div>
+
+            <div class="snippets-head">
+              <span class="eyebrow">Key figures</span>
+              <div style="display: flex; gap: 8px;">
+                <a id="deepLinkRatiosBtn" href="/ratios?symbol=RELIANCE" class="btn btn-sm">All ratios</a>
+                <a id="deepLinkDCFBtn" href="/dcf?symbol=RELIANCE" class="btn btn-sm">DCF model</a>
+              </div>
+            </div>
+            <div class="snippets">
+              <div class="snippet">
+                <div class="snippet-label">Valuation</div>
+                <div id="snipValuationVal" class="snippet-value">—</div>
+                <div id="snipValuationDesc" class="snippet-text"></div>
+              </div>
+              <div class="snippet">
+                <div class="snippet-label">Profitability</div>
+                <div id="snipProfitVal" class="snippet-value">—</div>
+                <div id="snipProfitDesc" class="snippet-text"></div>
+              </div>
+              <div class="snippet">
+                <div class="snippet-label">Leverage</div>
+                <div id="snipDebtVal" class="snippet-value">—</div>
+                <div id="snipDebtDesc" class="snippet-text"></div>
+              </div>
+              <div class="snippet">
+                <div class="snippet-label">52-week range</div>
+                <div id="snipGrowthVal" class="snippet-value">—</div>
+                <div id="snipGrowthDesc" class="snippet-text"></div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="studio-side" aria-label="Scorecards">
+            <ul class="scorecards">
+              <li class="scorecard">
+                <div>
+                  <div class="scorecard-title">Financial health</div>
+                  <div id="fundDesc" class="scorecard-desc"></div>
+                </div>
+                <span id="fundScore" class="score-badge">—</span>
+              </li>
+              <li class="scorecard">
+                <div>
+                  <div class="scorecard-title">Price trend</div>
+                  <div id="techDesc" class="scorecard-desc"></div>
+                </div>
+                <span id="techScore" class="score-badge">—</span>
+              </li>
+              <li class="scorecard">
+                <div>
+                  <div class="scorecard-title">Risk</div>
+                  <div id="riskDesc" class="scorecard-desc"></div>
+                </div>
+                <span id="riskScore" class="score-badge">—</span>
+              </li>
+            </ul>
+            <p class="side-note">
+              The signal and scores are rule-based heuristics on reported P/E, beta, leverage and recent price direction. They summarise the data; they are not a recommendation. For news sentiment and historical risk, open the <a href="/dashboard/">dashboard</a>.
+            </p>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="capabilities" class="section" style="margin-top: var(--s-8);">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">What's computed</p>
+          <h2>Every figure traces back to a filing or a price.</h2>
+          <p>Where the underlying data isn't reported, the metric shows N/A rather than an estimate.</p>
+        </div>
+        <div class="capabilities">
+          <div class="capability">
+            <h3>Discounted cash flow</h3>
+            <p>Five-year unlevered free cash flow from reported revenue and margins, with D&amp;A, capex and working capital taken from the trailing cash flow statement. WACC via CAPM, plus a WACC × growth sensitivity grid.</p>
+          </div>
+          <div class="capability">
+            <h3>Sixteen ratios</h3>
+            <p>Valuation, returns on capital, solvency (including Altman Z) and cash conversion cycle, calculated from the income statement and balance sheet.</p>
+          </div>
+          <div class="capability">
+            <h3>News sentiment</h3>
+            <p>Recent headlines scored individually with FinBERT, then aggregated. Each article's score is shown alongside the source.</p>
+          </div>
+          <div class="capability">
+            <h3>Historical risk</h3>
+            <p>Annualised volatility, 95% historical value-at-risk and Sharpe ratio from a year of daily returns.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="api" class="section">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">API</p>
+          <h2>The same data over REST.</h2>
+          <p>Every page here is built on public endpoints. Full schema in the <a href="/docs">API reference</a>.</p>
+        </div>
+        <div class="panel code-block">
+          <div class="panel-head">
+            <div class="segmented" role="tablist" aria-label="Code example language">
+              <button class="code-tab-btn active" type="button" role="tab" aria-selected="true" data-lang="curl">cURL</button>
+              <button class="code-tab-btn" type="button" role="tab" aria-selected="false" data-lang="python">Python</button>
+              <button class="code-tab-btn" type="button" role="tab" aria-selected="false" data-lang="javascript">JavaScript</button>
+            </div>
+            <button id="copyCodeBtn" class="btn btn-sm" type="button">Copy</button>
+          </div>
+          <pre class="code-content" role="tabpanel"><code id="codeDisplay"></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq" class="section">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Questions</p>
+          <h2>How it works</h2>
+        </div>
+        <div class="faq">
+          <div class="faq-item active">
+            <button class="faq-question" type="button" aria-expanded="true" aria-controls="faq-1">
+              <span>Where do the numbers come from?</span>
+              <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div id="faq-1" class="faq-answer">Prices, statements and news come from the configured market data provider (Yahoo Finance by default). Ratios and the DCF are computed from those statements on each request; nothing is cached from a static table.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-2">
+              <span>Can it run fully offline with a local model?</span>
+              <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div id="faq-2" class="faq-answer">The agent layer supports local inference through Ollama, LM Studio or vLLM, with local ChromaDB storage and sentence-transformer embeddings. Market data still requires network access to your chosen provider.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-3">
+              <span>Which data providers are supported?</span>
+              <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div id="faq-3" class="faq-answer">Yahoo Finance, Financial Modeling Prep, Alpha Vantage and OpenBB. Set <code>DATA_PROVIDER</code> and optionally <code>DATA_FALLBACK_PROVIDER</code> to switch.</div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-4">
+              <span>How do I deploy it?</span>
+              <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div id="faq-4" class="faq-answer">A Dockerfile and docker-compose.yml are included. <code>docker-compose up -d</code> starts the API alongside Redis and ChromaDB.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>For research and education. Not investment advice. Built by <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">Anshul Chaudhary</a>.</p>
+      <nav aria-label="Footer">
+        <a href="https://www.linkedin.com/in/anshul-chaudhary-508138308/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <a href="https://github.com/morid648" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="/docs">API reference</a>
+        <a href="/redoc">ReDoc</a>
+        <a href="/health">Service health</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="/static/js/app.js?v=4" defer></script>
+</body>
+</html>
