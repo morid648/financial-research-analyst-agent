@@ -1,0 +1,14 @@
+# Hide the full root requirements.txt (~6.3 GB installed) so Vercel installs
+# only the slim api/requirements.txt for the function (500 MB limit).
+/requirements.txt
+
+# Not needed at runtime
+.venv/
+.agent/
+.claude/
+tests/
+notebooks/
+docs/
+postman/
+logs/
+data/
