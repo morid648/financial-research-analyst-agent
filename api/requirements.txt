@@ -4,6 +4,9 @@
 
 # Web framework
 fastapi>=0.109.0
+# Vercel's FastAPI detection may use src/main.py (it exports `app`), which
+# imports uvicorn at module level — without it the function crashes on start.
+uvicorn>=0.27.0
 pydantic>=2.5.3
 pydantic-settings>=2.1.0
 python-multipart>=0.0.6
