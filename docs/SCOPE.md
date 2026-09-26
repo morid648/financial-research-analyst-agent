@@ -1,11 +1,16 @@
 # Enhancement Scope Document - Financial Research Analyst Agent
 
-> ⚠️ **Historical planning document.** Written during an earlier phase and not
-> updated for the current codebase — it references the Streamlit `frontend/`
-> app, PostgreSQL and Redis, all of which have since been removed as unused
-> (see [`docs/ROOT_CAUSE_ANALYSIS.md`](ROOT_CAUSE_ANALYSIS.md) and the main
-> [`README.md`](../README.md) for the current state). Kept for history, not
-> as a guide to what's running today.
+> ⚠️ **Historical scope document (2026-02-16) — not a description of the current code.**
+> The "Current State Assessment" below describes the codebase as of February
+> 2026. Many of the features specified here now exist (see the **Status today**
+> column in [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md));
+> references to the Streamlit `frontend/`, PostgreSQL, and Redis no longer apply.
+>
+> **Still true today (checked 2026-09-26):** the hardcoded placeholders this
+> document flagged in "Critical Gaps" — `GET /api/v1/sentiment/{symbol}`,
+> `GET /api/v1/market/summary`, and the four-industry benchmarks in
+> `compare_to_industry()` — have **not** been fixed. See "Still Open" in
+> [`ROOT_CAUSE_ANALYSIS.md`](ROOT_CAUSE_ANALYSIS.md).
 
 **Version**: 2.0
 **Last Updated**: February 16, 2026

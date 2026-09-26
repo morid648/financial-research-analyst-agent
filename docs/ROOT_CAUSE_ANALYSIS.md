@@ -11,6 +11,8 @@
 
 A full audit of the ratio, DCF, and quote calculation paths — plus every page that renders them — found **17 distinct defects**, ranging from a silent crash bug that zeroed out DCF valuations, to four ratios that were never calculated at all (hardcoded placeholder strings), to an entire page (`/dashboard`) whose headline numbers, "agent reasoning" narrative, and news feed were all disconnected from any real data source. Every fix below was verified two ways: (1) direct calls to the Python functions against live yfinance data, and (2) the actual rendered page in a browser, re-fetching from the running server.
 
+> **Reading the "Verified" figures**: prices, fair values, and scores quoted below are what the live data feed returned during the audit. Market-dependent numbers (e.g. a share price or DCF target) will differ if re-run today; the *structural* conclusions — a 100x unit error, a hardcoded string, a crash swallowed by `except: pass` — do not depend on market data.
+
 The single root cause underlying most of the ratio/DCF defects: **two independent, undocumented unit-conversion assumptions about yfinance's `info` dict were wrong**, and a **third code path duplicated the same broken logic** instead of reusing the fixed version. Most of the rest were leftover placeholders from an earlier prototype (`/dashboard`), or a client-side JS reimplementation that had drifted from the server-side formula it was supposed to mirror (`dcf.html`).
 
 | # | Finding | Severity | Status |
@@ -48,7 +50,7 @@ The single root cause underlying most of the ratio/DCF defects: **two independen
 
 ### Theme B — Four ratios were never calculated (findings #2–#5)
 
-`get_company_ratios_profile()` in `market_data.py` advertised a "comprehensive 16-point financial ratios profile," but four of the sixteen were placeholder strings selected by a coarse if/else on the Debt-to-Equity value, not computed from the company's actual financials:
+`get_company_ratios_profile()` in `market_data.py` advertised a "comprehensive 16-point financial ratios profile," but four of the sixteen were never computed from the company's actual financials. Three were placeholder strings — Altman Z-Score and Interest Coverage picked by a coarse if/else on the Debt-to-Equity value, and Cash Conversion Cycle a single constant — and the fourth, ROCE, was a made-up proxy (`ROE × 1.1`) rather than the real formula:
 
 ```python
 # Before (src/tools/market_data.py, solvent-company branch)
@@ -60,7 +62,7 @@ roce_str = f"{roe_val * 1.1:.1f}%"
 ccc_str = "42 Days"
 ```
 
-Every company with D/E < 0.8 received an identical Altman Z-Score of exactly 3.60, and every solvent company was shown a Cash Conversion Cycle of exactly "42 Days" regardless of its actual inventory, receivables, or payables. This directly violates the stated methodology in both reference documents (`finance-financial-analyst.md`: *"Precision without accuracy is noise"*; `finance-investment-researcher.md`: *"The best research is falsifiable"*).
+Every company with D/E < 0.8 received an identical Altman Z-Score of exactly 3.60, and every solvent company was shown a Cash Conversion Cycle of exactly "42 Days" regardless of its actual inventory, receivables, or payables. This violates the analysis principles the audit was run against (the financial-analyst and investment-researcher guidelines used during the review, which are not part of this repository): *"Precision without accuracy is noise"* and *"The best research is falsifiable."*
 
 **Fix**: replaced with the standard formulas, computed from balance sheet / income statement data already being fetched:
 - **ROCE** = EBIT ÷ (Total Assets − Current Liabilities)
@@ -199,6 +201,7 @@ The D/E scaling bug existed in **two places**: `src/tools/market_data.py::get_co
 - **Fix**: added `_compute_risk_metrics()` — real daily/annualized volatility, historical VaR(95%), and Sharpe ratio from the ticker's actual daily returns (the same formulas already used, but never wired up, in `src/agents/risk.py`'s tool functions). Added `_compute_sentiment()` — calls the existing, working `analyze_news_impact()` (FinBERT-based, with an automatic VADER/neutral fallback chain already built into `src/tools/sentiment_engine.py`), returning a genuine aggregate score/label/confidence plus the top 3 scored articles, or an honest `"status": "unavailable"` if the news pipeline can't run for that request — never a fabricated constant.
 - **Verified**: live call for AAPL returned real, non-constant values: `risk = {annual_volatility_pct: 24.47, var_95_daily_pct: -2.01, sharpe_ratio: 1.33, volatility: "Medium"}`, `sentiment = {score: 0.207, label: "Positive", confidence: 0.813, engine: "finbert", articles_analyzed: 10}` — computed from 10 real news articles fetched live from Yahoo Finance.
 - **Note**: FinBERT (a ~440MB transformer model, already an existing dependency — `transformers`/`torch` were already in the project's `.venv`) takes ~10–90s to load on the *first* request after a server restart while it downloads/loads into memory; subsequent requests reuse the cached in-process model and are fast. This is inherent to the existing sentiment engine design, not something introduced by this fix.
+- **Deployment note (added later)**: the Vercel deployment installs a slim dependency set without `transformers`/`torch` to fit the 500 MB function limit, so FinBERT is not available there and the sentiment engine uses its fallback chain instead. Local and Docker installs (full `requirements.txt`) still use FinBERT.
 
 ### 15. Dead mock-data table in `app.js` — **fixed**
 - **File**: `static/js/app.js`
@@ -217,9 +220,31 @@ Two things surfaced during testing that looked like bugs but checked out as corr
 
 ---
 
+## Still Open: Placeholder Data Outside This Audit's Scope
+
+*Added 2026-09-26.* The 17 findings above covered the quote, ratio, and DCF paths
+and the pages that render them — and all 17 are fixed. A later review of the rest
+of `src/api/routes.py` found endpoints that still return **the same hardcoded
+values for every request**. They were not part of the original audit, so they are
+not counted in the 17 and are **not fixed**:
+
+| Endpoint / function | What it returns today |
+|---|---|
+| `GET /api/v1/sentiment/{symbol}` | Always `"positive"`, score `0.65`, news `0.7`, social `0.6` — for any ticker. (Real sentiment is available from `POST /api/v1/analyze`, finding #14.) |
+| `GET /api/v1/market/summary` | Fixed SPY/QQQ/DIA prices (`470.50`, `395.20`, `375.30`) and `"market_status": "open"` at all hours |
+| `POST /api/v1/portfolio` | Real per-stock prices, but a fixed `diversification_score` of `0.7`, `risk_assessment` of `"moderate"`, and one canned recommendation |
+| `POST /api/v1/reports` | A stub report whose body is *"Detailed analysis available upon request."* |
+| `financial_metrics.compare_to_industry()` | Fixed benchmarks for four industries (Technology, Healthcare, Finance, Consumer), not real peer data |
+
+These are the same class of defect as findings #6 and #14 — plausible-looking
+output with no data behind it — and should be fixed (computed from real data) or
+removed before being relied on.
+
+---
+
 ## Recommendations for Future Work
 
-All 17 findings from the original audit are now fixed (see status table above). What's left is architectural cleanup, not accuracy bugs:
+All 17 findings from the original audit are now fixed (see status table above). Beyond the open placeholders listed in the previous section, what's left is architectural cleanup, not accuracy bugs:
 
 1. **Consolidate duplicated ratio/scoring logic.** `market_data.py::get_company_ratios_profile`, `routes.py::get_live_quote`, and `routes.py::analyze_stock` each independently compute overlapping metrics (D/E, P/E-based recommendations, risk scores) with different levels of rigor. A single shared module would prevent the "fixed in one place, still broken in another" pattern that caused finding #7 to exist twice.
 2. **Pre-warm the FinBERT sentiment model at server startup** (rather than lazily on the first `/api/v1/analyze` call) so the first real user of the app after a deploy doesn't see a 10–90s delay. A simple `@app.on_event("startup")` hook calling `src.tools.sentiment_engine._get_analyzer()` once would do it.

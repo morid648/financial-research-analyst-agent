@@ -1,21 +1,20 @@
 # Architecture Design Document
 
-> ⚠️ **Historical planning document.** Written during an earlier phase and not
-> updated for the current codebase — it references the Streamlit `frontend/`
-> app, PostgreSQL and Redis, all of which have since been removed as unused
-> (see [`docs/ROOT_CAUSE_ANALYSIS.md`](ROOT_CAUSE_ANALYSIS.md) and the main
-> [`README.md`](../README.md) for the current state). Kept for history, not
-> as a guide to what's running today.
+> ℹ️ **Reconciled with the code on 2026-09-26.** The March 2026 version described
+> a Streamlit `frontend/`, PostgreSQL, and Redis; those were removed as unused,
+> and the sections below now describe what is actually in `src/`, `static/`, and
+> `config/`. The agent, RAG, and insight-engine internals (sections 2–3) were
+> checked against the source and were already accurate.
 
 > **Project**: Financial Research Analyst Agent
-> **Last Updated**: 2026-03-22
+> **Last Updated**: 2026-09-26 (originally 2026-03-22)
 > **Type**: AI-Powered Hierarchical Multi-Agent System for Financial Analysis
 
 ---
 
 ## 1. System Overview
 
-The Financial Research Analyst Agent is a hierarchical multi-agent system that provides comprehensive stock analysis by coordinating 11 specialized AI agents, 20+ analysis tools, a RAG knowledge pipeline, and a multi-provider data layer — all accessible through a Streamlit web app, REST API, and CLI.
+The Financial Research Analyst Agent is a hierarchical multi-agent system that provides comprehensive stock analysis by coordinating 11 specialized AI agents under an orchestrator, 39 analysis tool modules, a RAG knowledge pipeline, and a multi-provider data layer — all served by one FastAPI app that exposes both a REST API and a static web UI, plus a CLI.
 
 ```text
 +=============================================================================+
@@ -24,7 +23,7 @@ The Financial Research Analyst Agent is a hierarchical multi-agent system that p
 |                                                                             |
 |   +-------------------------------------------------------------------+     |
 |   | PRESENTATION LAYER                                                 |    |
-|   | Streamlit Web App  |  FastAPI REST API  |  CLI Tool                |    |
+|   | Static Web UI (static/) | FastAPI REST API |  CLI Tool            |    |
 |   +-------------------------------+-----------------------------------+     |
 |                                   |                                         |
 |   +-------------------------------v-----------------------------------+     |
@@ -54,10 +53,11 @@ The Financial Research Analyst Agent is a hierarchical multi-agent system that p
 |   +-------------------------------+-----------------------------------+     |
 |                                   |                                         |
 |   +-------------------------------v-----------------------------------+     |
-|   | TOOLS LAYER (20+)                                                 |    |
+|   | TOOLS LAYER (39 modules in src/tools/)                            |    |
 |   | Market Data | Indicators | Metrics | News | Peers | Earnings      |    |
 |   | Disruption | Dividends | Options | Events | Backtest | Insider    |    |
 |   | Document Search (RAG) | Insight Engine | ETF Screener | Perf      |    |
+|   | DCF | Monte Carlo | Portfolio Opt | Factors | ML Forecast | Alerts |    |
 |   +-------------------------------+-----------------------------------+    |
 |                                   |                                        |
 |   +-------------------------------v-----------------------------------+    |
@@ -65,7 +65,7 @@ The Financial Research Analyst Agent is a hierarchical multi-agent system that p
 |   |                                                                   |    |
 |   | MarketDataProvider (abstract protocol)                            |    |
 |   |   +-- YFinanceProvider (default, free)                            |    |
-|   |   +-- FMPProvider (250 req/day free tier)                         |    |
+|   |   +-- FMPProvider | AlphaVantageProvider | OpenBBProvider         |    |
 |   |   +-- MultiProvider (automatic primary -> fallback chain)         |    |
 |   |                                                                   |    |
 |   | Data Validator (stale detection, outliers, cross-provider checks) |    |
@@ -73,7 +73,7 @@ The Financial Research Analyst Agent is a hierarchical multi-agent system that p
 |                                   |                                        |
 |   +-------------------------------v-----------------------------------+    |
 |   | STORAGE LAYER                                                     |    |
-|   | SQLite / PostgreSQL  |  Redis Cache  |  ChromaDB Vector Store     |    |
+|   | ChromaDB vector store (RAG only) -- no relational DB or cache     |    |
 |   +-------------------------------+-----------------------------------+    |
 |                                   |                                        |
 |   +-------------------------------v-----------------------------------+    |
@@ -395,21 +395,24 @@ All tools access market data through an abstract `MarketDataProvider` protocol, 
 ```text
   MarketDataProvider (abstract protocol)
   |
-  |  8 categories, 18 methods:
+  |  8 categories, 19 methods:
   |  |-- Info & Quote:    get_info(), get_quote()
   |  |-- Historical:      get_history()
   |  |-- Financials:      get_income_statement(), get_balance_sheet(),
-  |  |                    get_cash_flow(), get_quarterly_income_statement()
+  |  |                    get_cash_flow(), get_quarterly_income_statement(),
+  |  |                    get_financials()
   |  |-- Earnings:        get_earnings_history(), get_calendar()
   |  |-- Dividends:       get_dividends()
   |  |-- Options:         get_options_expirations(), get_options_chain()
-  |  |-- Holders:         get_insider_transactions(), get_institutional_holders(),
+  |  |-- Holders:         get_insider_transactions(), get_insider_purchases(),
+  |  |                    get_institutional_holders(), get_mutualfund_holders(),
   |  |                    get_major_holders()
   |  +-- News:            get_news()
   |
-  |-- YFinanceProvider        (default, free, no API key)
-  |-- FMPProvider             (free tier: 250 req/day)
-  +-- [TwelveDataProvider]    (future)
+  |-- YFinanceProvider      (default, free, no API key)   DATA_PROVIDER=yfinance
+  |-- FMPProvider           (API key, free tier)          DATA_PROVIDER=fmp
+  |-- AlphaVantageProvider  (API key, free tier)          DATA_PROVIDER=alphavantage
+  +-- OpenBBProvider        (via the openbb package)      DATA_PROVIDER=openbb
 ```
 
 ### 4.2 Fallback Chain
@@ -463,9 +466,11 @@ The `MultiProvider` wraps a primary + fallback provider so every call automatica
   |-- Empty DataFrame check
   |-- Required OHLCV columns present
   |-- NaN row percentage (> 10% flagged)
-  |-- Stale data (last date > 7 days old)
-  |-- Price outliers (> 50% daily change)
+  |-- Stale data (last date > ~3 trading days old)
+  |-- Price outliers (> 20% daily move flagged, > 50% extreme)
   +-- Expected row count for period
+
+  validate_financials(...), validate_all(...)   statement checks / run all
 
   cross_validate_price(price_a, price_b, tolerance=2%)
   +-- Flags divergence between two provider prices
@@ -477,26 +482,33 @@ The `MultiProvider` wraps a primary + fallback provider so every call automatica
 
 ### 5.1 Tool Registry
 
-| Tool Module                | Functions                                                          | Data Source       | Used By                            |
-|----------------------------|--------------------------------------------------------------------|-------------------|------------------------------------|
-| **market_data.py**         | get_stock_price, get_historical_data, get_company_info             | Data Provider     | DataCollector, all pages           |
-| **technical_indicators.py**| calculate_rsi, calculate_macd, calculate_moving_averages, BB       | NumPy (calc)      | TechnicalAnalyst                   |
-| **financial_metrics.py**   | valuation_ratios, profitability, liquidity, growth, health         | Data Provider     | FundamentalAnalyst                 |
-| **news_fetcher.py**        | fetch_news (multi-source with fallback)                            | YFinance, NewsAPI | SentimentAnalyst                   |
-| **peer_comparison.py**     | compare_peers (async, 100-stock universe)                          | Data Provider     | FundamentalAnalyst                 |
-| **document_search.py**     | search_sec_filings, search_transcripts, get_filing_context         | ChromaDB (RAG)    | FundamentalAnalyst, SentimentAnalyst|
-| **insight_engine.py**      | generate_observations (rule-based detectors)                       | All analyses      | LLM Insight Engine                 |
-| **llm_insight_engine.py**  | generate_smart_observations (LLM synthesis)                        | All analyses + LLM| OrchestratorAgent                  |
-| **theme_mapper.py**        | load_themes, map_stock_to_themes, theme_performance                | YAML config       | ThematicAnalyst                    |
-| **earnings_data.py**       | get_quarterly_earnings, eps_surprises, earnings_quality            | Data Provider     | EarningsAnalyst                    |
-| **disruption_metrics.py**  | r&d_intensity, revenue_acceleration, margin_trajectory             | Data Provider     | DisruptionAnalyst                  |
-| **dividend_analyzer.py**   | dividend_yield, safety_score, growth_classification                | Data Provider     | DividendAnalyst                    |
-| **options_analyzer.py**    | put_call_ratio, iv_skew, max_pain, unusual_activity                | Data Provider     | OptionsAnalyst                     |
-| **performance_tracker.py** | track_performance, returns, sharpe, sortino, drawdown              | Data Provider     | Performance page                   |
-| **event_analyzer.py**      | analyze_events (earnings, dividends, splits windows)               | Data Provider     | OrchestratorAgent                  |
-| **backtesting_engine.py**  | run_backtest (RSI reversal, MACD crossover, SMA)                   | Historical data   | OrchestratorAgent                  |
-| **insider_activity.py**    | analyze_smart_money, cluster_buying, institutional_flows           | Data Provider     | OrchestratorAgent                  |
-| **etf_screener.py**        | rank_etfs, thematic_scoring                                        | Theme mapper      | ETF Screener page                  |
+| Tool Module | Functions | Data Source | Used By |
+|---|---|---|---|
+| **market_data.py** | get_stock_price, get_historical_data, get_company_info, get_company_ratios_profile, get_company_dcf_profile | Data Provider | DataCollector, web UI (quote / ratios / DCF) |
+| **technical_indicators.py** | calculate_rsi, calculate_macd, calculate_moving_averages, calculate_bollinger_bands, detect_patterns | NumPy (calc) | TechnicalAnalyst |
+| **financial_metrics.py** | calculate_valuation_ratios, calculate_profitability_ratios, calculate_liquidity_ratios, calculate_growth_metrics, analyze_financial_health | Data Provider | FundamentalAnalyst |
+| **news_fetcher.py** | fetch_news, fetch_company_news (multi-source with fallback) | YFinance, NewsAPI | SentimentAnalyst |
+| **peer_comparison.py** | discover_peers, compare_peers (127-ticker default universe) | Data Provider | FundamentalAnalyst, `/api/v1/peers` |
+| **document_search.py** | search_sec_filings, search_earnings_transcripts, get_filing_context (LangChain tools) | ChromaDB (RAG) | FundamentalAnalyst, SentimentAnalyst |
+| **insight_engine.py** | generate_observations (rule-based detectors) | All analyses | LLM Insight Engine, `/api/v1/observations` |
+| **llm_insight_engine.py** | generate_smart_observations (LLM synthesis) | All analyses + LLM | OrchestratorAgent |
+| **theme_mapper.py** | list_available_themes, get_theme_definition, calculate_theme_performance, calculate_momentum_score | YAML config | ThematicAnalyst |
+| **earnings_data.py** | analyze_earnings, calculate_surprise_pattern, assess_earnings_quality | Data Provider | EarningsAnalyst |
+| **disruption_metrics.py** | calculate_rd_intensity, calculate_revenue_acceleration, calculate_margin_trajectory, analyze_disruption | Data Provider | DisruptionAnalyst |
+| **dividend_analyzer.py** | calculate_dividend_safety, calculate_dividend_growth, analyze_dividends | Data Provider | DividendAnalyst |
+| **options_analyzer.py** | analyze_options (put/call ratio, IV skew, max pain, unusual activity) | Data Provider | OptionsAnalyst |
+| **performance_tracker.py** | track_performance (returns, Sharpe, Sortino, drawdown) | Data Provider | `/api/v1/performance` |
+| **event_analyzer.py** | analyze_events (earnings, dividend, split windows) | Data Provider | `/api/v1/events` |
+| **backtesting_engine.py** | run_backtest, walk_forward_analysis, backtest_portfolio, list_strategies | Historical data | `/api/v1/backtest` |
+| **insider_activity.py** | get_insider_activity, get_institutional_holdings, analyze_smart_money | Data Provider | `/api/v1/insiders` |
+| **etf_screener.py** | fetch_etf_data, screen_etfs | Theme mapper | ThematicAnalyst |
+
+The table covers the 18 core modules. The other 21 in `src/tools/` are
+`alerts`, `analyst_tracker`, `anomaly_detector`, `benchmark`, `brinson_attribution`,
+`dcf_model`, `factor_model`, `macro_data`, `ml_forecast`, `monte_carlo`, `news_impact`,
+`portfolio_optimizer`, `report_export`, `scheduled_reports`, `sentiment_engine`,
+`short_interest`, `social_sentiment`, `strategy_definitions`, `strategy_optimizer`,
+`supply_chain`, and `tax_loss_harvesting`.
 
 ### 5.2 Tool Binding Pattern
 
@@ -524,88 +536,65 @@ class FundamentalAnalystAgent(BaseAgent):
 
 ## 6. Presentation Layer
 
-### 6.1 Streamlit Web App
+### 6.1 Static Web UI
+
+The Streamlit app described in the March version has been removed. The UI is
+now plain HTML/CSS/JS in `static/`, served by the same FastAPI app:
 
 ```text
-  frontend/
-  |-- app.py                       Landing page (AI Advisor chat interface)
-  |-- pages/
-  |   |-- 1_Dashboard.py           Market overview + watchlist
-  |   |-- 2_Stock_Analysis.py      Comprehensive single-stock analysis
-  |   |-- 3_Thematic_Investing.py  17 investment themes browser
-  |   |-- 4_Peer_Comparison.py     Side-by-side company comparison
-  |   |-- 5_Market_Disruption.py   Disruption scoring
-  |   |-- 6_Quarterly_Earnings.py  EPS tracking + quality
-  |   |-- 7_Portfolio_Analysis.py  Multi-stock correlation + analysis
-  |   |-- 8_Reports.py            Report generation
-  |   |-- 9_News.py               Financial news aggregation
-  |   |-- 10_Performance.py       Portfolio performance tracking
-  |   |-- 11_Sentiment.py         Market sentiment analysis
-  |   +-- 12_ETF_Screener.py      AI-driven ETF ranking
-  |
-  |-- components/
-  |   |-- header.py                Grouped dropdown navigation
-  |   |-- sidebar.py               Symbol search + watchlist
-  |   |-- charts.py                TradingView candlestick/area charts
-  |   |-- plotly_charts.py         Gauge, radar, heatmap, bar charts
-  |   |-- metrics_cards.py         KPI cards, news cards, score badges
-  |   +-- data_tables.py           Styled DataFrames
-  |
-  |-- utils/
-  |   |-- data_service.py          Direct Python tool imports (no API calls)
-  |   |-- theme.py                 CSS injection, color system
-  |   |-- formatters.py            Currency, percentage, date formatting
-  |   +-- session.py               Session state management
-  |
-  +-- assets/
-      +-- style.css                Bloomberg-inspired dark theme
+  static/
+  |-- index.html          /           Landing page: live quote + recommendation badge
+  |-- ratios.html         /ratios     16-metric ratios profile with data-confidence score
+  |-- dcf.html            /dcf        Interactive DCF (sliders, 2D sensitivity matrix)
+  |-- about.html          /about
+  |-- dashboard/          /dashboard  Analysis dashboard (price chart, metrics, news)
+  |-- css/style.css                   Shared design system
+  +-- js/app.js, theme.js, three-scene.js
 ```
 
-**Key design choice**: The frontend imports analysis tools directly via Python — no HTTP API calls needed. Data flows within the same process for maximum performance.
+The pages call the REST API over HTTP — no direct Python imports:
 
 ```text
-  Page ---> data_service.py ---> src/tools/*.py ---> Data Provider
-                                  (same process, no network hop)
+  Browser ---> fetch("/api/v1/quote|ratios|dcf|analyze|history/...") ---> routes.py ---> src/tools/*
 ```
-
-**Chart libraries**:
-
-- TradingView Lightweight Charts (CDN v4.1.1) for financial charts
-- Plotly for gauges, radar charts, heatmaps, bar charts
-
-**Caching**: `@st.cache_data` with TTLs (60s prices, 300s historical, 1800s analysis)
 
 ### 6.2 FastAPI REST API
 
+`src/api/routes.py`, prefix `/api/v1` (grouped; see `/docs` for the full schema):
+
 ```text
-  /api/v1/
-  |-- POST   /analyze              Comprehensive stock analysis
-  |-- GET    /technical/{symbol}   Technical analysis only
-  |-- GET    /fundamental/{symbol} Fundamental analysis only
-  |-- GET    /sentiment/{symbol}   Sentiment analysis only
-  |-- POST   /portfolio            Multi-stock portfolio analysis
-  |-- POST   /reports              Generate research reports
-  |-- GET    /themes               List available investment themes
-  |-- POST   /themes/analyze       Analyze a specific theme
-  |-- GET    /peers/{symbol}       Peer comparison
-  |-- GET    /disruption/{symbol}  Disruption analysis
-  |-- GET    /earnings/{symbol}    Earnings analysis
-  |-- GET    /dividends/{symbol}   Dividend analysis
-  |-- GET    /performance/{symbol} Performance tracking
-  |-- GET    /events/{symbol}      Event-driven analysis
-  |-- POST   /backtest             Strategy backtesting
-  |-- GET    /observations/{symbol} LLM-powered insights
-  |-- GET    /smart-money/{symbol} Insider activity analysis
-  |-- GET    /options/{symbol}     Options flow analysis
-  +-- GET    /health               System health check
+  Core analysis     POST /analyze · GET /technical/{s} · GET /fundamental/{s}
+                    GET /sentiment/{s} · POST /portfolio · POST /reports
+  Quote & valuation GET /quote/{s} · GET /ratios/{s} · GET /dcf/{s} · GET /history/{s}
+                    GET /market/summary
+  Themes            GET /themes · POST /theme/{theme_id} · POST /themes/compare
+  Peers             GET /peers/{s} · POST /peers/compare
+  Disruption        GET /disruption/{s} · POST /disruption/analyze · POST /disruption/compare
+  Earnings          GET /earnings/{s} · POST /earnings/analyze · POST /earnings/compare
+  Dividends         GET /dividends/{s} · POST /dividends/analyze · POST /dividends/compare
+  Performance/events GET /performance/{s} · GET /events/{s}
+  Backtesting       POST /backtest · GET /strategies
+  Insights          GET /observations/{s}
+  Smart money       GET /insiders/{s} · GET /options/{s}
+  Portfolio math*   POST /portfolio/optimize · /efficient-frontier · /correlation
+                    · /full-optimization · /rebalance · /benchmark
+  Alerts*           POST|GET /alerts · GET /alerts/types · GET /alerts/triggered
+                    · GET|DELETE /alerts/{id} · POST /alerts/evaluate
+  Analysts*         GET /analysts/{s} · POST /analysts/compare
+  Short interest*   GET /shorts/{s} · POST /shorts/compare · GET /shorts/watchlist
+
+  Outside /api/v1:  GET /health · WebSocket /ws/alerts
 ```
+
+\* Declared after `app.include_router(router)` in `routes.py`. FastAPI ≥ 0.141
+serves them; older versions silently drop them.
 
 ### 6.3 CLI
 
 ```bash
 python -m src.cli analyze AAPL              # Single stock analysis
 python -m src.cli portfolio AAPL GOOGL MSFT # Multi-stock portfolio
-python -m src.cli dashboard --port 8080     # Start web dashboard
+python -m src.cli dashboard --port 8080     # Serve the same FastAPI app (UI + API) on a port
 python -m src.main api                      # Start REST API server
 python -m src.main demo                     # Run demo analysis
 ```
@@ -633,19 +622,22 @@ All agents use `BaseAgent._create_default_llm()` which reads `LLM_PROVIDER` from
 
 ## 8. Storage Layer
 
-| Store                    | Purpose                                        | Default                  | Production         |
-|--------------------------|------------------------------------------------|--------------------------|--------------------|
-| **SQLite / PostgreSQL**  | Analysis persistence, portfolios, watchlists   | SQLite (file)            | PostgreSQL (Docker)|
-| **Redis**                | Response caching (TTL: 3600s default)          | localhost:6379           | Docker service     |
-| **ChromaDB**             | RAG vector store (SEC filings, transcripts)    | `./data/chroma` (persist)| Docker service     |
-| **Sentence Transformers**| Document embeddings for ChromaDB               | `all-MiniLM-L6-v2`      | Same               |
+| Store | Purpose | Default | Notes |
+|---|---|---|---|
+| **ChromaDB** | RAG vector store (SEC filings, transcripts) | `./data/chroma` (persistent) | Optional; not installed on the slim Vercel deployment |
+| **Sentence Transformers** | Document embeddings for ChromaDB | `all-MiniLM-L6-v2` | Same |
+
+There is **no relational database and no Redis cache**. SQLite/PostgreSQL,
+SQLAlchemy/Alembic, and Redis were removed as unused; analyses are computed per
+request and not persisted. `DatabaseSettings` (`database_url`, `redis_url`) still
+exists in `src/config.py` but nothing reads it.
 
 ---
 
 ## 9. Configuration Architecture
 
 ```text
-  Environment Variables (.env)
+  Environment Variables (.env)       -- blank values fall back to defaults
   |
   +---> Pydantic BaseSettings (src/config.py)
         |
@@ -657,7 +649,7 @@ All agents use `BaseAgent._create_default_llm()` which reads `LLM_PROVIDER` from
         |   fmp_api_key, fred_api_key, alpha_vantage_api_key,
         |   finnhub_api_key, news_api_key
         |
-        |-- DatabaseSettings
+        |-- DatabaseSettings        (defined, currently unused)
         |   database_url, redis_url, cache_ttl_seconds
         |
         |-- VectorStoreSettings
@@ -703,25 +695,17 @@ All agents use `BaseAgent._create_default_llm()` which reads `LLM_PROVIDER` from
   |   |   |-- options.py              #   Options flow analysis
   |   |   +-- report_generator.py     #   Report output (JSON/MD/PDF)
   |   |
-  |   |-- tools/                      # 20+ analysis tools
-  |   |   |-- market_data.py          #   Price, history, company info
+  |   |-- tools/                      # 39 analysis tool modules, incl.
+  |   |   |-- market_data.py          #   Price, history, ratios profile, DCF profile
   |   |   |-- technical_indicators.py #   RSI, MACD, MA, Bollinger Bands
   |   |   |-- financial_metrics.py    #   Valuation, profitability, liquidity
-  |   |   |-- news_fetcher.py         #   Multi-source news with fallback
-  |   |   |-- peer_comparison.py      #   Async peer discovery (100-stock universe)
+  |   |   |-- dcf_model.py            #   DCF valuation
+  |   |   |-- portfolio_optimizer.py  #   Max Sharpe, min vol, risk parity, rebalance
+  |   |   |-- monte_carlo.py          #   Monte Carlo simulation
+  |   |   |-- backtesting_engine.py   #   Backtests, walk-forward, multi-asset
   |   |   |-- document_search.py      #   RAG tools (filing + transcript search)
-  |   |   |-- insight_engine.py       #   Rule-based observation detectors
   |   |   |-- llm_insight_engine.py   #   LLM-powered cross-dimensional synthesis
-  |   |   |-- theme_mapper.py         #   Theme definitions, scoring, ETF mapping
-  |   |   |-- earnings_data.py        #   EPS surprises, quality scoring
-  |   |   |-- disruption_metrics.py   #   R&D intensity, revenue acceleration
-  |   |   |-- dividend_analyzer.py    #   Yield, safety, growth classification
-  |   |   |-- options_analyzer.py     #   Put/call, IV skew, max pain
-  |   |   |-- performance_tracker.py  #   Returns, Sharpe, Sortino, drawdown
-  |   |   |-- event_analyzer.py       #   Corporate events (earnings, splits)
-  |   |   |-- backtesting_engine.py   #   Strategy simulation (RSI, MACD, SMA)
-  |   |   |-- insider_activity.py     #   Form 4 parsing, smart money scoring
-  |   |   +-- etf_screener.py         #   ETF ranking, thematic scoring
+  |   |   +-- ...                     #   (see section 5.1 for the full list)
   |   |
   |   |-- rag/                        # RAG knowledge pipeline
   |   |   |-- ingester.py             #   SEC EDGAR fetcher + text chunker
@@ -731,28 +715,27 @@ All agents use `BaseAgent._create_default_llm()` which reads `LLM_PROVIDER` from
   |   |-- data/                       # Data provider abstraction
   |   |   |-- provider.py             #   Abstract protocol + YFinance + MultiProvider
   |   |   |-- fmp_provider.py         #   Financial Modeling Prep provider
+  |   |   |-- alphavantage_provider.py #  Alpha Vantage provider
+  |   |   |-- openbb_provider.py      #   OpenBB provider
   |   |   +-- validator.py            #   Data quality validation
   |   |
   |   |-- api/
-  |   |   |-- routes.py               #   30+ FastAPI endpoints
+  |   |   |-- routes.py               #   ~50 API endpoints + static page routes
   |   |   +-- schemas.py              #   Pydantic request/response models
   |   |
   |   |-- config.py                   #   Pydantic settings (6 sub-settings)
   |   |-- main.py                     #   Entry point (API / CLI / Demo)
   |   +-- cli.py                      #   CLI interface
   |
-  |-- frontend/                       # Streamlit web app
-  |   |-- app.py                      #   Landing page (AI Advisor chat)
-  |   |-- pages/ (12 pages)           #   Analysis, research, portfolio, data
-  |   |-- components/                 #   Header, charts, cards, tables
-  |   |-- utils/                      #   Data service, theme, formatters
-  |   +-- assets/                     #   Bloomberg dark theme CSS
-  |
-  |-- tests/ (16 files, 5400+ lines)  # Comprehensive test suite
+  |-- static/                         # Web UI (HTML/CSS/JS), served by FastAPI
+  |-- tests/ (19 files, 375 tests)    # pytest suite
   |-- config/                         # agents.yaml, themes.yaml
   |-- docs/                           # Architecture, gap analysis, plans
-  |-- requirements.txt                # 92 Python dependencies
-  |-- docker-compose.yml              # PostgreSQL, Redis, ChromaDB
+  |-- requirements.txt                # Full dependency set (55 packages) for local/Docker/CI
+  |-- pyproject.toml                  # Slim dependency set used only by Vercel
+  |-- .vercelignore                   # Keeps the full requirements.txt out of Vercel
+  |-- .github/workflows/ci.yml        # pytest + black/isort/flake8 on push and PR
+  |-- docker-compose.yml              # API + ChromaDB
   |-- Dockerfile                      # Container image
   +-- .env.example                    # Environment template
 ```
@@ -771,7 +754,8 @@ All agents use `BaseAgent._create_default_llm()` which reads `LLM_PROVIDER` from
 | Insight engine         | Hybrid (rules + LLM)                       | Rules provide reliable structure; LLM adds depth; graceful fallback  |
 | Reasoning              | ReAct protocol via prompt injection        | Works with any LLM provider, no framework lock-in                    |
 | Confidence scoring     | Regex extraction from output text          | Any LLM can produce it; no custom model needed                       |
-| Frontend data access   | Direct Python imports                      | No API calls needed, same process, zero latency                      |
+| Frontend data access   | Static pages calling the REST API          | One code path for UI and API clients; no separate frontend process   |
 | Configuration          | Pydantic BaseSettings + YAML               | Typed validation, env var overrides, agent-specific tuning           |
 | Default stack          | Ollama + ChromaDB + Sentence Transformers  | Full functionality with zero API keys or costs                       |
-| Async execution        | asyncio.gather() for parallel agents       | 4-5x faster than sequential; all agents run simultaneously           |
+| Async execution        | asyncio.gather() for parallel agents       | The four core analysts run concurrently instead of one after another |
+| Deployment             | Vercel (slim deps) + Docker (full deps)    | Vercel's 500 MB limit excludes torch/openbb/chromadb; Docker runs everything |
