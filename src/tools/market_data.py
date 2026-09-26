@@ -91,6 +91,7 @@ def _check_ticker_price(sym: str) -> Optional[float]:
     """Safely check if a ticker symbol yields a valid live price."""
     try:
         import yfinance as yf
+
         t = yf.Ticker(sym)
         if hasattr(t, "fast_info"):
             try:
@@ -193,10 +194,7 @@ def get_stock_price(symbol: str) -> Dict[str, Any]:
         info = provider.get_info(resolved_sym) or {}
 
         curr_price = (
-            verified_price
-            or info.get("currentPrice")
-            or info.get("regularMarketPrice")
-            or 0
+            verified_price or info.get("currentPrice") or info.get("regularMarketPrice") or 0
         )
         prev_close = info.get("previousClose") or curr_price
         open_price = info.get("open") or info.get("regularMarketOpen") or curr_price
@@ -468,11 +466,19 @@ def get_company_dcf_profile(
     # Track *where* each assumption came from — the financial-analyst rule "state your
     # assumptions before your conclusions" only means something if a reader can tell a
     # company-reported figure apart from a generic fallback guess.
-    growth_source = "override" if growth is not None else ("company-reported" if info.get("revenueGrowth") else "sector-default")
+    growth_source = (
+        "override"
+        if growth is not None
+        else ("company-reported" if info.get("revenueGrowth") else "sector-default")
+    )
     def_growth = float(info.get("revenueGrowth") or 0.12) * 100
     param_growth = float(growth if growth is not None else max(2.0, min(50.0, def_growth)))
 
-    margin_source = "override" if margin is not None else ("company-reported" if info.get("operatingMargins") else "sector-default")
+    margin_source = (
+        "override"
+        if margin is not None
+        else ("company-reported" if info.get("operatingMargins") else "sector-default")
+    )
     def_margin = float(info.get("operatingMargins") or 0.15) * 100
     param_margin = float(margin if margin is not None else max(2.0, min(70.0, def_margin)))
 
@@ -494,11 +500,16 @@ def get_company_dcf_profile(
     # D&A / CapEx / NWC as % of revenue: derive from the company's own trailing
     # actuals when available, falling back to generic defaults otherwise.
     da_rate, capex_rate, nwc_rate = 3.0, 4.0, 2.0
-    da_rate_source, capex_rate_source, nwc_rate_source = "generic-default", "generic-default", "generic-default"
+    da_rate_source, capex_rate_source, nwc_rate_source = (
+        "generic-default",
+        "generic-default",
+        "generic-default",
+    )
     if raw_rev > 0:
         try:
             cf = provider.get_cash_flow(resolved_sym)
             if cf is not None and not cf.empty:
+
                 def _pct_of_rev(keys):
                     for k in keys:
                         if k in cf.index:
@@ -507,7 +518,13 @@ def get_company_dcf_profile(
                                 return abs(float(vals.iloc[0])) / raw_rev * 100
                     return None
 
-                da_pct = _pct_of_rev(["Depreciation And Amortization", "Depreciation Amortization Depletion", "Depreciation"])
+                da_pct = _pct_of_rev(
+                    [
+                        "Depreciation And Amortization",
+                        "Depreciation Amortization Depletion",
+                        "Depreciation",
+                    ]
+                )
                 capex_pct = _pct_of_rev(["Capital Expenditure", "Purchase Of PPE"])
                 nwc_pct = _pct_of_rev(["Change In Working Capital"])
                 if da_pct:
@@ -563,12 +580,20 @@ def get_company_dcf_profile(
             discount_factor = 1.0 / math.pow(1.0 + wacc_dec, y)
             pv_fcf = fcf * discount_factor
             pv_sum += pv_fcf
-            fc.append({
-                "year": y, "rev": round(curr_r, 2), "ebit": round(ebit, 2),
-                "nopat": round(nopat, 2), "da": round(da, 2), "capex": round(capex, 2),
-                "nwc": round(nwc, 2), "fcf": round(fcf, 2), "df": round(discount_factor, 4),
-                "pv": round(pv_fcf, 2),
-            })
+            fc.append(
+                {
+                    "year": y,
+                    "rev": round(curr_r, 2),
+                    "ebit": round(ebit, 2),
+                    "nopat": round(nopat, 2),
+                    "da": round(da, 2),
+                    "capex": round(capex, 2),
+                    "nwc": round(nwc, 2),
+                    "fcf": round(fcf, 2),
+                    "df": round(discount_factor, 4),
+                    "pv": round(pv_fcf, 2),
+                }
+            )
         fcf_last = fc[-1]["fcf"]
         g_d = term_g_pct / 100
         denom = max(0.01, wacc_dec - g_d)
@@ -584,18 +609,20 @@ def get_company_dcf_profile(
         forecast = []
         for y in years:
             discount_factor = 1.0 / math.pow(1.0 + wacc_dec, y)
-            forecast.append({
-                "year": y,
-                "rev": 0.0,
-                "ebit": 0.0,
-                "nopat": 0.0,
-                "da": 0.0,
-                "capex": 0.0,
-                "nwc": 0.0,
-                "fcf": 0.0,
-                "df": round(discount_factor, 4),
-                "pv": 0.0,
-            })
+            forecast.append(
+                {
+                    "year": y,
+                    "rev": 0.0,
+                    "ebit": 0.0,
+                    "nopat": 0.0,
+                    "da": 0.0,
+                    "capex": 0.0,
+                    "nwc": 0.0,
+                    "fcf": 0.0,
+                    "df": round(discount_factor, 4),
+                    "pv": 0.0,
+                }
+            )
         total_pv_fcf = 0.0
         terminal_value = 0.0
         pv_terminal_value = 0.0
@@ -603,21 +630,46 @@ def get_company_dcf_profile(
         equity_value = cash - debt
         fair_value = max(0.0, equity_value / shares) if shares > 0 else 0.0
         gap_pct = ((fair_value - cmp_price) / cmp_price * 100) if cmp_price > 0 else -100.0
-        verdict = "Distressed / Insolvent (No Active Operations)" if equity_value <= 0 else "Pre-Revenue (Net Asset Backing)"
+        verdict = (
+            "Distressed / Insolvent (No Active Operations)"
+            if equity_value <= 0
+            else "Pre-Revenue (Net Asset Backing)"
+        )
         matrix = [[round(fair_value, 2)] * 5 for _ in range(5)]
         # No active operations to flex a bull/bear case around — all three collapse
         # to the same net-asset-backing figure.
         scenarios = {
-            "bull": {"growth": 0.0, "margin": 0.0, "fair_value_per_share": round(fair_value, 2), "upside_pct": round(gap_pct, 1)},
-            "base": {"growth": 0.0, "margin": 0.0, "fair_value_per_share": round(fair_value, 2), "upside_pct": round(gap_pct, 1)},
-            "bear": {"growth": 0.0, "margin": 0.0, "fair_value_per_share": round(fair_value, 2), "upside_pct": round(gap_pct, 1)},
+            "bull": {
+                "growth": 0.0,
+                "margin": 0.0,
+                "fair_value_per_share": round(fair_value, 2),
+                "upside_pct": round(gap_pct, 1),
+            },
+            "base": {
+                "growth": 0.0,
+                "margin": 0.0,
+                "fair_value_per_share": round(fair_value, 2),
+                "upside_pct": round(gap_pct, 1),
+            },
+            "bear": {
+                "growth": 0.0,
+                "margin": 0.0,
+                "fair_value_per_share": round(fair_value, 2),
+                "upside_pct": round(gap_pct, 1),
+            },
         }
         probability_weighted_fair_value = round(fair_value, 2)
     else:
         # 2-4. Base case: 5-year FCF waterfall, terminal value, EV-to-equity bridge
-        forecast, total_pv_fcf, terminal_value, pv_terminal_value, enterprise_value, equity_value, fair_value = _project(
-            param_growth, param_margin, param_term_g
-        )
+        (
+            forecast,
+            total_pv_fcf,
+            terminal_value,
+            pv_terminal_value,
+            enterprise_value,
+            equity_value,
+            fair_value,
+        ) = _project(param_growth, param_margin, param_term_g)
         fcf5 = forecast[-1]["fcf"]
         gap_pct = ((fair_value - cmp_price) / cmp_price * 100) if cmp_price > 0 else 0.0
         verdict = "Undervalued (Upside)" if gap_pct >= 0 else "Overvalued (Caution)"
@@ -656,22 +708,37 @@ def get_company_dcf_profile(
 
         scenarios = {
             "bull": {
-                "growth": round(bull_growth, 1), "margin": round(bull_margin, 1), "terminal_g": round(bull_term_g, 2),
-                "fair_value_per_share": round(bull_fv, 2), "weight": 0.25,
-                "upside_pct": round(((bull_fv - cmp_price) / cmp_price * 100) if cmp_price > 0 else 0.0, 1),
+                "growth": round(bull_growth, 1),
+                "margin": round(bull_margin, 1),
+                "terminal_g": round(bull_term_g, 2),
+                "fair_value_per_share": round(bull_fv, 2),
+                "weight": 0.25,
+                "upside_pct": round(
+                    ((bull_fv - cmp_price) / cmp_price * 100) if cmp_price > 0 else 0.0, 1
+                ),
             },
             "base": {
-                "growth": round(param_growth, 1), "margin": round(param_margin, 1), "terminal_g": round(param_term_g, 2),
-                "fair_value_per_share": round(fair_value, 2), "weight": 0.50,
+                "growth": round(param_growth, 1),
+                "margin": round(param_margin, 1),
+                "terminal_g": round(param_term_g, 2),
+                "fair_value_per_share": round(fair_value, 2),
+                "weight": 0.50,
                 "upside_pct": round(gap_pct, 1),
             },
             "bear": {
-                "growth": round(bear_growth, 1), "margin": round(bear_margin, 1), "terminal_g": round(bear_term_g, 2),
-                "fair_value_per_share": round(bear_fv, 2), "weight": 0.25,
-                "upside_pct": round(((bear_fv - cmp_price) / cmp_price * 100) if cmp_price > 0 else 0.0, 1),
+                "growth": round(bear_growth, 1),
+                "margin": round(bear_margin, 1),
+                "terminal_g": round(bear_term_g, 2),
+                "fair_value_per_share": round(bear_fv, 2),
+                "weight": 0.25,
+                "upside_pct": round(
+                    ((bear_fv - cmp_price) / cmp_price * 100) if cmp_price > 0 else 0.0, 1
+                ),
             },
         }
-        probability_weighted_fair_value = round(0.25 * bull_fv + 0.50 * fair_value + 0.25 * bear_fv, 2)
+        probability_weighted_fair_value = round(
+            0.25 * bull_fv + 0.50 * fair_value + 0.25 * bear_fv, 2
+        )
 
     company_name = info.get("longName") or info.get("shortName") or resolved_sym
 
@@ -788,15 +855,21 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
                     continue
         return None
 
-    stockholders_equity = _first_row(bs, ['Stockholders Equity', 'Common Stock Equity', 'Total Equity Gross Minority Interest'])
-    total_debt_bs = _first_row(bs, ['Total Debt', 'Long Term Debt And Capital Lease Obligation', 'Long Term Debt'])
+    stockholders_equity = _first_row(
+        bs, ["Stockholders Equity", "Common Stock Equity", "Total Equity Gross Minority Interest"]
+    )
+    total_debt_bs = _first_row(
+        bs, ["Total Debt", "Long Term Debt And Capital Lease Obligation", "Long Term Debt"]
+    )
 
     # Shared fundamentals for ROCE / Interest Coverage / Altman Z / CCC below
     ebit_val = _first_row(fin, ["EBIT", "Operating Income"])
     total_assets_val = _first_row(bs, ["Total Assets"])
     current_assets_val = _first_row(bs, ["Current Assets"])
     current_liabilities_val = _first_row(bs, ["Current Liabilities"])
-    total_liabilities_val = _first_row(bs, ["Total Liabilities Net Minority Interest", "Total Liab"])
+    total_liabilities_val = _first_row(
+        bs, ["Total Liabilities Net Minority Interest", "Total Liab"]
+    )
     retained_earnings_val = _first_row(bs, ["Retained Earnings"])
     revenue_val = _first_row(fin, ["Total Revenue", "Operating Revenue"])
     interest_expense_val = _first_row(fin, ["Interest Expense"])
@@ -808,7 +881,9 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
         gross_profit_val = _first_row(fin, ["Gross Profit"])
         if gross_profit_val is not None:
             cogs_val = revenue_val - gross_profit_val
-    market_cap_val = info.get("marketCap") or (cmp_price * float(info.get("sharesOutstanding") or 0))
+    market_cap_val = info.get("marketCap") or (
+        cmp_price * float(info.get("sharesOutstanding") or 0)
+    )
 
     # Return on Capital Employed = EBIT / (Total Assets - Current Liabilities)
     capital_employed = (
@@ -843,12 +918,14 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
 
     # Altman Z-Score = 1.2*(WC/TA) + 1.4*(RE/TA) + 3.3*(EBIT/TA) + 0.6*(MVE/TL) + 1.0*(Sales/TA)
     if (
-        total_assets_val and total_assets_val > 0
+        total_assets_val
+        and total_assets_val > 0
         and current_assets_val is not None
         and current_liabilities_val is not None
         and retained_earnings_val is not None
         and ebit_val is not None
-        and total_liabilities_val and total_liabilities_val > 0
+        and total_liabilities_val
+        and total_liabilities_val > 0
         and revenue_val is not None
     ):
         working_capital = current_assets_val - current_liabilities_val
@@ -861,11 +938,14 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
         )
         altman_str = f"{altman_z:.2f}"
         altman_pill = "good" if altman_z > 2.99 else ("caution" if altman_z > 1.81 else "danger")
-        altman_exp = (
-            f"Altman Z-Score of {altman_str}: "
-            + ("Safe zone, low near-term bankruptcy risk." if altman_z > 2.99
-               else "Grey zone, moderate financial distress risk." if altman_z > 1.81
-               else "Distress zone, elevated bankruptcy risk.")
+        altman_exp = f"Altman Z-Score of {altman_str}: " + (
+            "Safe zone, low near-term bankruptcy risk."
+            if altman_z > 2.99
+            else (
+                "Grey zone, moderate financial distress risk."
+                if altman_z > 1.81
+                else "Distress zone, elevated bankruptcy risk."
+            )
         )
     else:
         altman_str = "N/A"
@@ -874,8 +954,13 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
 
     # Cash Conversion Cycle = DIO + DSO - DPO
     if (
-        cogs_val and cogs_val > 0 and revenue_val and revenue_val > 0
-        and inventory_val is not None and receivables_val is not None and payables_val is not None
+        cogs_val
+        and cogs_val > 0
+        and revenue_val
+        and revenue_val > 0
+        and inventory_val is not None
+        and receivables_val is not None
+        and payables_val is not None
     ):
         dio = (inventory_val / cogs_val) * 365
         dso = (receivables_val / revenue_val) * 365
@@ -883,15 +968,21 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
         ccc_val = dio + dso - dpo
         ccc_str = f"{ccc_val:.0f} Days"
         ccc_pill = "good" if ccc_val < 60 else ("caution" if ccc_val < 120 else "danger")
-        ccc_exp = f"Cash conversion cycle of {ccc_str} (DIO {dio:.0f} + DSO {dso:.0f} − DPO {dpo:.0f})."
+        ccc_exp = (
+            f"Cash conversion cycle of {ccc_str} (DIO {dio:.0f} + DSO {dso:.0f} − DPO {dpo:.0f})."
+        )
     else:
         ccc_str = "N/A"
         ccc_pill = "caution"
-        ccc_exp = "Cash conversion cycle not available (inventory/receivables/payables not reported)."
+        ccc_exp = (
+            "Cash conversion cycle not available (inventory/receivables/payables not reported)."
+        )
 
     # P/E
     pe_str = f"{float(pe):.1f}x" if pe else "N/A"
-    pe_pill = "good" if pe and float(pe) < 25 else ("caution" if pe and float(pe) < 45 else "danger")
+    pe_pill = (
+        "good" if pe and float(pe) < 25 else ("caution" if pe and float(pe) < 45 else "danger")
+    )
     pe_exp = f"Trading at {pe_str} earnings. {'Attractive multiple' if pe_pill == 'good' else ('Loss-making company' if not pe else 'Growth premium priced in')}."
 
     # P/B Ratio (Handle Negative P/B for eroded net worth)
@@ -922,7 +1013,11 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
 
     # EV / EBITDA
     ev_str = f"{float(ev_ebitda):.1f}x" if ev_ebitda else "N/A"
-    ev_pill = "good" if ev_ebitda and 0 < float(ev_ebitda) < 15 else ("caution" if ev_ebitda and float(ev_ebitda) < 30 else "danger")
+    ev_pill = (
+        "good"
+        if ev_ebitda and 0 < float(ev_ebitda) < 15
+        else ("caution" if ev_ebitda and float(ev_ebitda) < 30 else "danger")
+    )
     ev_exp = f"Enterprise multiple of {ev_str}."
 
     # Dividend Yield
@@ -933,14 +1028,22 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
     div_exp = f"Annual dividend yield of {div_str}."
 
     # Net Worth & Solvency evaluation
-    has_negative_equity = (stockholders_equity is not None and stockholders_equity <= 0) or (pb is not None and float(pb) < 0)
+    has_negative_equity = (stockholders_equity is not None and stockholders_equity <= 0) or (
+        pb is not None and float(pb) < 0
+    )
 
     if has_negative_equity:
         de_str = "Capital Eroded"
         de_pill = "danger"
         debt_num = total_debt_bs or info.get("totalDebt", 0.0)
-        debt_disp = f"{curr_sym}{debt_num / (1e7 if is_inr else 1e6):,.1f} {('Cr' if is_inr else 'M')}"
-        eq_disp = f"{curr_sym}{stockholders_equity / (1e7 if is_inr else 1e6):,.1f} {('Cr' if is_inr else 'M')}" if stockholders_equity else "Negative"
+        debt_disp = (
+            f"{curr_sym}{debt_num / (1e7 if is_inr else 1e6):,.1f} {('Cr' if is_inr else 'M')}"
+        )
+        eq_disp = (
+            f"{curr_sym}{stockholders_equity / (1e7 if is_inr else 1e6):,.1f} {('Cr' if is_inr else 'M')}"
+            if stockholders_equity
+            else "Negative"
+        )
         de_exp = f"Extremely distressed: company has total debt of {debt_disp} against eroded negative net worth ({eq_disp})."
 
         roe_str = "N/A"
@@ -961,7 +1064,11 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
         # companies (ratio < 0.05) showing a leverage figure 100x too high.
         if de is not None:
             de_val = float(de) / 100
-        elif total_debt_bs is not None and stockholders_equity is not None and stockholders_equity > 0:
+        elif (
+            total_debt_bs is not None
+            and stockholders_equity is not None
+            and stockholders_equity > 0
+        ):
             de_val = total_debt_bs / stockholders_equity
         else:
             de_val = None
@@ -1001,7 +1108,12 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
             cr_num = float(cr_val)
         except Exception:
             pass
-    if cr_num is None and bs is not None and "Current Assets" in bs.index and "Current Liabilities" in bs.index:
+    if (
+        cr_num is None
+        and bs is not None
+        and "Current Assets" in bs.index
+        and "Current Liabilities" in bs.index
+    ):
         try:
             ca = float(bs.loc["Current Assets"].dropna().iloc[0])
             cl = float(bs.loc["Current Liabilities"].dropna().iloc[0])
@@ -1037,7 +1149,9 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
         fcf_num = float(fcf)
         fcf_str = f"{curr_sym}{fcf_num / (1e7 if is_inr else 1e6):,.1f} {('Cr' if is_inr else 'M')}"
         fcf_pill = "good" if fcf_num > 0 else "danger"
-        fcf_exp = f"{'Positive' if fcf_num > 0 else 'Negative'} recurring free cash flow from operations."
+        fcf_exp = (
+            f"{'Positive' if fcf_num > 0 else 'Negative'} recurring free cash flow from operations."
+        )
     else:
         fcf_str = "N/A"
         fcf_pill = "caution"
@@ -1051,7 +1165,11 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
         sales_exp = f"Top-line revenue trend is {sales_str} year-over-year."
     else:
         if fin is not None and ("Total Revenue" in fin.index or "Operating Revenue" in fin.index):
-            rev_row = fin.loc["Total Revenue"] if "Total Revenue" in fin.index else fin.loc["Operating Revenue"]
+            rev_row = (
+                fin.loc["Total Revenue"]
+                if "Total Revenue" in fin.index
+                else fin.loc["Operating Revenue"]
+            )
             rev_vals = rev_row.dropna()
             if len(rev_vals) > 0 and rev_vals.iloc[0] == 0:
                 sales_str = "0.0% (No Ops)"
@@ -1092,32 +1210,82 @@ def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:
     # Data confidence: investment-researcher rule — "disclose your confidence level".
     # A verdict built on 6 of 16 available metrics deserves a different level of trust
     # than one built on 15 of 16, and the reader should see that at a glance.
-    metric_values = [pe_str, pb_str, ev_str, div_str, roe_str, roce_str, opm_str, npm_str,
-                      de_str, icr_str, cr_str, altman_str, fcf_str, sales_str, profit_str, ccc_str]
+    metric_values = [
+        pe_str,
+        pb_str,
+        ev_str,
+        div_str,
+        roe_str,
+        roce_str,
+        opm_str,
+        npm_str,
+        de_str,
+        icr_str,
+        cr_str,
+        altman_str,
+        fcf_str,
+        sales_str,
+        profit_str,
+        ccc_str,
+    ]
     available = sum(1 for v in metric_values if v not in ("N/A",) and not str(v).startswith("N/A"))
     confidence_pct = round(available / len(metric_values) * 100, 0)
-    confidence_label = "High" if confidence_pct >= 75 else ("Medium" if confidence_pct >= 50 else "Low")
+    confidence_label = (
+        "High" if confidence_pct >= 75 else ("Medium" if confidence_pct >= 50 else "Low")
+    )
 
     return {
         "symbol": resolved_sym,
         "title": f"{name} ({curr_sym}{cmp_price:,.2f})",
         "subtitle": f"Sector: {sector} • Currency: {curr_code} ({curr_sym})",
-        "pe": pe_str, "pePill": pe_pill, "peExplain": pe_exp,
-        "pb": pb_str, "pbPill": pb_pill, "pbExplain": pb_exp,
-        "ev": ev_str, "evPill": ev_pill, "evExplain": ev_exp,
-        "div": div_str, "divPill": div_pill, "divExplain": div_exp,
-        "roe": roe_str, "roePill": roe_pill, "roeExplain": roe_exp,
-        "roce": roce_str, "rocePill": roce_pill, "roceExplain": roce_exp,
-        "opm": opm_str, "opmPill": opm_pill, "opmExplain": opm_exp,
-        "npm": npm_str, "npmPill": npm_pill, "npmExplain": npm_exp,
-        "de": de_str, "dePill": de_pill, "deExplain": de_exp,
-        "icr": icr_str, "icrPill": icr_pill, "icrExplain": icr_exp,
-        "cr": cr_str, "crPill": cr_pill, "crExplain": cr_exp,
-        "altman": altman_str, "altmanPill": altman_pill, "altmanExplain": altman_exp,
-        "fcf": fcf_str, "fcfPill": fcf_pill, "fcfExplain": fcf_exp,
-        "sales": sales_str, "salesPill": sales_pill, "salesExplain": sales_exp,
-        "profit": profit_str, "profitPill": profit_pill, "profitExplain": profit_exp,
-        "ccc": ccc_str, "cccPill": ccc_pill, "cccExplain": ccc_exp,
+        "pe": pe_str,
+        "pePill": pe_pill,
+        "peExplain": pe_exp,
+        "pb": pb_str,
+        "pbPill": pb_pill,
+        "pbExplain": pb_exp,
+        "ev": ev_str,
+        "evPill": ev_pill,
+        "evExplain": ev_exp,
+        "div": div_str,
+        "divPill": div_pill,
+        "divExplain": div_exp,
+        "roe": roe_str,
+        "roePill": roe_pill,
+        "roeExplain": roe_exp,
+        "roce": roce_str,
+        "rocePill": roce_pill,
+        "roceExplain": roce_exp,
+        "opm": opm_str,
+        "opmPill": opm_pill,
+        "opmExplain": opm_exp,
+        "npm": npm_str,
+        "npmPill": npm_pill,
+        "npmExplain": npm_exp,
+        "de": de_str,
+        "dePill": de_pill,
+        "deExplain": de_exp,
+        "icr": icr_str,
+        "icrPill": icr_pill,
+        "icrExplain": icr_exp,
+        "cr": cr_str,
+        "crPill": cr_pill,
+        "crExplain": cr_exp,
+        "altman": altman_str,
+        "altmanPill": altman_pill,
+        "altmanExplain": altman_exp,
+        "fcf": fcf_str,
+        "fcfPill": fcf_pill,
+        "fcfExplain": fcf_exp,
+        "sales": sales_str,
+        "salesPill": sales_pill,
+        "salesExplain": sales_exp,
+        "profit": profit_str,
+        "profitPill": profit_pill,
+        "profitExplain": profit_exp,
+        "ccc": ccc_str,
+        "cccPill": ccc_pill,
+        "cccExplain": ccc_exp,
         "dataConfidence": {
             "score_pct": confidence_pct,
             "label": confidence_label,

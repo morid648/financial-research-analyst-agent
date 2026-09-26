@@ -29,10 +29,10 @@ class DCFScenario(BaseModel):
     design.md §2, rules.md R1).
     """
 
-    growth_rate: float = 0.0          # % pa, e.g. 10.0 means 10%
-    terminal_growth: float = 0.0      # % pa terminal growth assumption
-    intrinsic_value: float = 0.0      # per-share intrinsic value ($)
-    upside_pct: float = 0.0           # vs current price (%)
+    growth_rate: float = 0.0  # % pa, e.g. 10.0 means 10%
+    terminal_growth: float = 0.0  # % pa terminal growth assumption
+    intrinsic_value: float = 0.0  # per-share intrinsic value ($)
+    upside_pct: float = 0.0  # vs current price (%)
     wacc_pct: Optional[float] = None  # WACC used (%), carried so it's always visible
 
 
@@ -51,7 +51,6 @@ class Recommendation(BaseModel):
     # F3: scenario and sensitivity fields (Optional — non-DCF paths leave these None)
     scenario_analysis: Optional[Dict[str, DCFScenario]] = None
     recommendation_sensitivity: Optional[Dict[str, Any]] = None
-
 
 
 class ReportSection(BaseModel):
@@ -190,8 +189,7 @@ class ResearchReport(BaseModel):
                 most = sens.get("most_sensitive_input", "")
                 lines.append("")
                 lines.append(
-                    f"Recommendation sensitivity: {robust_str} "
-                    f"(most sensitive to '{most}')"
+                    f"Recommendation sensitivity: {robust_str} " f"(most sensitive to '{most}')"
                 )
             lines.append("")
 

@@ -37,13 +37,12 @@ class OpenBBProvider(MarketDataProvider):
         self._default_provider = default_provider
         try:
             from openbb import obb
+
             self._obb = obb
             logger.info("OpenBBProvider initialized successfully")
         except ImportError as e:
             logger.error(f"Failed to import OpenBB: {e}")
-            raise ImportError(
-                "OpenBB is not installed. Install with: pip install openbb"
-            ) from e
+            raise ImportError("OpenBB is not installed. Install with: pip install openbb") from e
 
     # ── Helpers ──────────────────────────────────────────────────
 
@@ -64,11 +63,15 @@ class OpenBBProvider(MarketDataProvider):
 
         try:
             # 1. Fetch current quote
-            quote_res = self._obb.equity.price.quote(symbol=clean_symbol, provider=self._default_provider)
+            quote_res = self._obb.equity.price.quote(
+                symbol=clean_symbol, provider=self._default_provider
+            )
             quote_data = quote_res.to_df()
             if not quote_data.empty:
                 row = quote_data.iloc[0].to_dict()
-                info["currentPrice"] = row.get("last_price") or row.get("price") or row.get("close", 0)
+                info["currentPrice"] = (
+                    row.get("last_price") or row.get("price") or row.get("close", 0)
+                )
                 info["regularMarketPrice"] = info["currentPrice"]
                 info["previousClose"] = row.get("prev_close") or row.get("previous_close", 0)
                 info["open"] = row.get("open", 0)
@@ -79,7 +82,9 @@ class OpenBBProvider(MarketDataProvider):
                 info["fiftyTwoWeekLow"] = row.get("year_low") or row.get("fifty_two_week_low", 0)
 
             # 2. Fetch company profile / overview
-            profile_res = self._obb.equity.profile(symbol=clean_symbol, provider=self._default_provider)
+            profile_res = self._obb.equity.profile(
+                symbol=clean_symbol, provider=self._default_provider
+            )
             profile_df = profile_res.to_df()
             if not profile_df.empty:
                 p = profile_df.iloc[0].to_dict()
@@ -94,7 +99,9 @@ class OpenBBProvider(MarketDataProvider):
 
             # 3. Fetch fundamental multiples / key metrics
             try:
-                metrics_res = self._obb.equity.fundamental.metrics(symbol=clean_symbol, provider=self._default_provider)
+                metrics_res = self._obb.equity.fundamental.metrics(
+                    symbol=clean_symbol, provider=self._default_provider
+                )
                 m_df = metrics_res.to_df()
                 if not m_df.empty:
                     m = m_df.iloc[0].to_dict()
@@ -110,6 +117,7 @@ class OpenBBProvider(MarketDataProvider):
             # If price is missing or zero (e.g. ETFs, Indices, or renamed ticker), fallback to YFinanceProvider
             if not info.get("currentPrice"):
                 from src.data.provider import YFinanceProvider
+
                 yf_info = YFinanceProvider().get_info(symbol)
                 if yf_info and yf_info.get("currentPrice"):
                     return yf_info
@@ -119,6 +127,7 @@ class OpenBBProvider(MarketDataProvider):
         except Exception as e:
             logger.warning(f"OpenBB get_info error for {clean_symbol}: {e}. Falling back.")
             from src.data.provider import YFinanceProvider
+
             return YFinanceProvider().get_info(symbol)
 
     def get_quote(self, symbol: str) -> Dict[str, Any]:
@@ -141,6 +150,7 @@ class OpenBBProvider(MarketDataProvider):
             logger.warning(f"OpenBB get_quote error for {clean_symbol}: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_quote(symbol)
 
     # ── Category 2: Historical Price Data ────────────────────────
@@ -158,8 +168,15 @@ class OpenBBProvider(MarketDataProvider):
         try:
             if not start:
                 period_days = {
-                    "1d": 1, "5d": 5, "1mo": 30, "3mo": 90,
-                    "6mo": 180, "1y": 365, "2y": 730, "5y": 1825, "10y": 3650
+                    "1d": 1,
+                    "5d": 5,
+                    "1mo": 30,
+                    "3mo": 90,
+                    "6mo": 180,
+                    "1y": 365,
+                    "2y": 730,
+                    "5y": 1825,
+                    "10y": 3650,
                 }
                 days = period_days.get(period, 365)
                 start_dt = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -171,13 +188,17 @@ class OpenBBProvider(MarketDataProvider):
                 start_date=start_dt,
                 end_date=end,
                 interval=interval if interval != "1d" else "1d",
-                provider=self._default_provider
+                provider=self._default_provider,
             )
             df = res.to_df()
             if not df.empty:
                 rename_map = {
-                    "open": "Open", "high": "High", "low": "Low",
-                    "close": "Close", "volume": "Volume", "date": "Date"
+                    "open": "Open",
+                    "high": "High",
+                    "low": "Low",
+                    "close": "Close",
+                    "volume": "Volume",
+                    "date": "Date",
                 }
                 df = df.rename(columns=rename_map)
                 return df
@@ -185,7 +206,10 @@ class OpenBBProvider(MarketDataProvider):
             logger.warning(f"OpenBB get_history error for {clean_symbol}: {e}")
 
         from src.data.provider import YFinanceProvider
-        return YFinanceProvider().get_history(symbol, period=period, interval=interval, start=start, end=end)
+
+        return YFinanceProvider().get_history(
+            symbol, period=period, interval=interval, start=start, end=end
+        )
 
     # ── Category 3: Financial Statements ─────────────────────────
 
@@ -193,7 +217,9 @@ class OpenBBProvider(MarketDataProvider):
         """Fetch annual income statement."""
         clean_symbol = symbol.strip().upper()
         try:
-            res = self._obb.equity.fundamental.income(symbol=clean_symbol, provider=self._default_provider)
+            res = self._obb.equity.fundamental.income(
+                symbol=clean_symbol, provider=self._default_provider
+            )
             df = res.to_df()
             if not df.empty:
                 return df
@@ -201,13 +227,16 @@ class OpenBBProvider(MarketDataProvider):
             logger.debug(f"OpenBB income statement retrieval: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_income_statement(symbol)
 
     def get_balance_sheet(self, symbol: str) -> pd.DataFrame:
         """Fetch annual balance sheet."""
         clean_symbol = symbol.strip().upper()
         try:
-            res = self._obb.equity.fundamental.balance(symbol=clean_symbol, provider=self._default_provider)
+            res = self._obb.equity.fundamental.balance(
+                symbol=clean_symbol, provider=self._default_provider
+            )
             df = res.to_df()
             if not df.empty:
                 return df
@@ -215,13 +244,16 @@ class OpenBBProvider(MarketDataProvider):
             logger.debug(f"OpenBB balance sheet retrieval: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_balance_sheet(symbol)
 
     def get_cash_flow(self, symbol: str) -> pd.DataFrame:
         """Fetch annual cash flow statement."""
         clean_symbol = symbol.strip().upper()
         try:
-            res = self._obb.equity.fundamental.cash(symbol=clean_symbol, provider=self._default_provider)
+            res = self._obb.equity.fundamental.cash(
+                symbol=clean_symbol, provider=self._default_provider
+            )
             df = res.to_df()
             if not df.empty:
                 return df
@@ -229,13 +261,16 @@ class OpenBBProvider(MarketDataProvider):
             logger.debug(f"OpenBB cash flow retrieval: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_cash_flow(symbol)
 
     def get_quarterly_income_statement(self, symbol: str) -> pd.DataFrame:
         """Fetch quarterly income statement."""
         clean_symbol = symbol.strip().upper()
         try:
-            res = self._obb.equity.fundamental.income(symbol=clean_symbol, period="quarter", provider=self._default_provider)
+            res = self._obb.equity.fundamental.income(
+                symbol=clean_symbol, period="quarter", provider=self._default_provider
+            )
             df = res.to_df()
             if not df.empty:
                 return df
@@ -243,6 +278,7 @@ class OpenBBProvider(MarketDataProvider):
             logger.debug(f"OpenBB quarterly income retrieval: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_quarterly_income_statement(symbol)
 
     def get_financials(
@@ -270,11 +306,13 @@ class OpenBBProvider(MarketDataProvider):
     def get_earnings_history(self, symbol: str) -> pd.DataFrame:
         """Fetch historical earnings vs estimates."""
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_earnings_history(symbol)
 
     def get_calendar(self, symbol: str) -> Any:
         """Fetch upcoming dividend/earnings corporate events."""
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_calendar(symbol)
 
     # ── Category 5: Dividends ────────────────────────────────────
@@ -283,7 +321,9 @@ class OpenBBProvider(MarketDataProvider):
         """Fetch dividend payment history series."""
         clean_symbol = symbol.strip().upper()
         try:
-            res = self._obb.equity.fundamental.dividends(symbol=clean_symbol, provider=self._default_provider)
+            res = self._obb.equity.fundamental.dividends(
+                symbol=clean_symbol, provider=self._default_provider
+            )
             df = res.to_df()
             if not df.empty and "amount" in df.columns:
                 return df["amount"]
@@ -291,6 +331,7 @@ class OpenBBProvider(MarketDataProvider):
             logger.debug(f"OpenBB dividends retrieval: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_dividends(symbol)
 
     # ── Category 6: Options ──────────────────────────────────────
@@ -299,7 +340,9 @@ class OpenBBProvider(MarketDataProvider):
         """Fetch options chain expiration dates."""
         clean_symbol = symbol.strip().upper()
         try:
-            res = self._obb.derivatives.options.chains(symbol=clean_symbol, provider=self._default_provider)
+            res = self._obb.derivatives.options.chains(
+                symbol=clean_symbol, provider=self._default_provider
+            )
             df = res.to_df()
             if not df.empty and "expiration" in df.columns:
                 return sorted(list(df["expiration"].astype(str).unique()))
@@ -307,11 +350,13 @@ class OpenBBProvider(MarketDataProvider):
             logger.debug(f"OpenBB options chains retrieval: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_options_expirations(symbol)
 
     def get_options_chain(self, symbol: str, expiration: str) -> Dict[str, pd.DataFrame]:
         """Fetch options calls and puts dataframes."""
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_options_chain(symbol, expiration=expiration)
 
     # ── Category 7: Holders & Insider Activity ───────────────────
@@ -320,7 +365,9 @@ class OpenBBProvider(MarketDataProvider):
         """Fetch insider transactions."""
         clean_symbol = symbol.strip().upper()
         try:
-            res = self._obb.equity.ownership.insider_trading(symbol=clean_symbol, provider=self._default_provider)
+            res = self._obb.equity.ownership.insider_trading(
+                symbol=clean_symbol, provider=self._default_provider
+            )
             df = res.to_df()
             if not df.empty:
                 return df
@@ -328,18 +375,22 @@ class OpenBBProvider(MarketDataProvider):
             logger.debug(f"OpenBB insider transactions: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_insider_transactions(symbol)
 
     def get_insider_purchases(self, symbol: str) -> pd.DataFrame:
         """Fetch insider purchase summary."""
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_insider_purchases(symbol)
 
     def get_institutional_holders(self, symbol: str) -> pd.DataFrame:
         """Fetch institutional shareholder breakdown."""
         clean_symbol = symbol.strip().upper()
         try:
-            res = self._obb.equity.ownership.institutional(symbol=clean_symbol, provider=self._default_provider)
+            res = self._obb.equity.ownership.institutional(
+                symbol=clean_symbol, provider=self._default_provider
+            )
             df = res.to_df()
             if not df.empty:
                 return df
@@ -347,16 +398,19 @@ class OpenBBProvider(MarketDataProvider):
             logger.debug(f"OpenBB institutional holders: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_institutional_holders(symbol)
 
     def get_mutualfund_holders(self, symbol: str) -> pd.DataFrame:
         """Fetch mutual fund holders breakdown."""
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_mutualfund_holders(symbol)
 
     def get_major_holders(self, symbol: str) -> pd.DataFrame:
         """Fetch major holders breakdown."""
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_major_holders(symbol)
 
     # ── Category 8: News ─────────────────────────────────────────
@@ -365,21 +419,26 @@ class OpenBBProvider(MarketDataProvider):
         """Fetch recent financial news articles."""
         clean_symbol = symbol.strip().upper()
         try:
-            res = self._obb.news.company(symbol=clean_symbol, limit=limit, provider=self._default_provider)
+            res = self._obb.news.company(
+                symbol=clean_symbol, limit=limit, provider=self._default_provider
+            )
             df = res.to_df()
             if not df.empty:
                 articles = []
                 for _, row in df.iterrows():
-                    articles.append({
-                        "title": row.get("title", ""),
-                        "publisher": row.get("source", "OpenBB News"),
-                        "link": row.get("url", ""),
-                        "providerPublishTime": row.get("date", datetime.utcnow().isoformat()),
-                        "type": "ARTICLE"
-                    })
+                    articles.append(
+                        {
+                            "title": row.get("title", ""),
+                            "publisher": row.get("source", "OpenBB News"),
+                            "link": row.get("url", ""),
+                            "providerPublishTime": row.get("date", datetime.utcnow().isoformat()),
+                            "type": "ARTICLE",
+                        }
+                    )
                 return articles
         except Exception as e:
             logger.debug(f"OpenBB news retrieval: {e}")
 
         from src.data.provider import YFinanceProvider
+
         return YFinanceProvider().get_news(symbol, limit=limit)

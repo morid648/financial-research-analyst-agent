@@ -131,7 +131,6 @@ class AgentSettings(BaseSettings):
     model_config = ConfigDict(env_prefix="")
 
 
-
 class APISettings(BaseSettings):
     """API server configuration settings."""
 
