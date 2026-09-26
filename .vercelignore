@@ -1,5 +1,5 @@
 # Hide the full root requirements.txt (~6.3 GB installed) so Vercel installs
-# only the slim api/requirements.txt for the function (500 MB limit).
+# the slim dependency set from pyproject.toml (500 MB function limit).
 /requirements.txt
 
 # Not needed at runtime

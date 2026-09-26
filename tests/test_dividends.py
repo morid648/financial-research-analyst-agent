@@ -31,9 +31,10 @@ class TestDividendSafetyCalculation:
         """Should calculate high safety score for strong fundamentals."""
         from src.tools.dividend_analyzer import calculate_dividend_safety
 
-        with patch("src.tools.dividend_analyzer.get_provider") as mock_get_provider, patch(
-            "src.tools.dividend_analyzer.calculate_dividend_growth"
-        ) as mock_growth:
+        with (
+            patch("src.tools.dividend_analyzer.get_provider") as mock_get_provider,
+            patch("src.tools.dividend_analyzer.calculate_dividend_growth") as mock_growth,
+        ):
             mock_provider = MagicMock()
             mock_get_provider.return_value = mock_provider
 
@@ -119,9 +120,10 @@ class TestDividendSafetyCalculation:
         """Should identify red flags for risky dividends."""
         from src.tools.dividend_analyzer import calculate_dividend_safety
 
-        with patch("src.tools.dividend_analyzer.get_provider") as mock_get_provider, patch(
-            "src.tools.dividend_analyzer.calculate_dividend_growth"
-        ) as mock_growth:
+        with (
+            patch("src.tools.dividend_analyzer.get_provider") as mock_get_provider,
+            patch("src.tools.dividend_analyzer.calculate_dividend_growth") as mock_growth,
+        ):
             mock_provider = MagicMock()
             mock_get_provider.return_value = mock_provider
 
@@ -306,13 +308,12 @@ class TestAnalyzeDividends:
         """Should return complete dividend analysis."""
         from src.tools.dividend_analyzer import analyze_dividends
 
-        with patch("src.tools.dividend_analyzer.fetch_dividend_info") as mock_info, patch(
-            "src.tools.dividend_analyzer.calculate_dividend_growth"
-        ) as mock_growth, patch(
-            "src.tools.dividend_analyzer.calculate_dividend_safety"
-        ) as mock_safety, patch(
-            "src.tools.dividend_analyzer.compare_yields"
-        ) as mock_yields:
+        with (
+            patch("src.tools.dividend_analyzer.fetch_dividend_info") as mock_info,
+            patch("src.tools.dividend_analyzer.calculate_dividend_growth") as mock_growth,
+            patch("src.tools.dividend_analyzer.calculate_dividend_safety") as mock_safety,
+            patch("src.tools.dividend_analyzer.compare_yields") as mock_yields,
+        ):
 
             mock_info.return_value = {
                 "symbol": "JNJ",
