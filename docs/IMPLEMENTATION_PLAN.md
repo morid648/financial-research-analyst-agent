@@ -1,11 +1,12 @@
 # Implementation Plan: Smart AI Financial Analyzer
 
-> ⚠️ **Historical planning document.** Written during an earlier phase and not
-> updated for the current codebase — it references the Streamlit `frontend/`
-> app, PostgreSQL and Redis, all of which have since been removed as unused
-> (see [`docs/ROOT_CAUSE_ANALYSIS.md`](ROOT_CAUSE_ANALYSIS.md) and the main
-> [`README.md`](../README.md) for the current state). Kept for history, not
-> as a guide to what's running today.
+> ⚠️ **Historical plan (2026-03-22) — not a description of the current code.**
+> Most of the features planned here have since been built as modules in
+> `src/tools/`, `src/rag/`, and `src/data/`; some remain open, and items tied to
+> the removed Streamlit `frontend/`, PostgreSQL/Alembic, and Redis no longer
+> apply. For the item-by-item status (done / partial / open), see the
+> **Status today** column in [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md). For what runs
+> today, see [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 > **Date**: 2026-03-22
 > **Reference**: [GAP_ANALYSIS.md](GAP_ANALYSIS.md)

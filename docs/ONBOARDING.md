@@ -21,22 +21,28 @@ Imagine you want to invest in a stock like Apple (AAPL). Normally, you'd:
 
 **This project automates all of that using AI!** 🤖
 
-You ask the system: *"Should I buy Apple?"*
+There are **two ways** to ask it about a stock, and they work differently:
 
-It responds with:
+| | REST API (`POST /api/v1/analyze`) | AI agent pipeline (Python / CLI) |
+|---|---|---|
+| How | Calls the analysis tools directly | 11 LLM-powered agents coordinated by an orchestrator |
+| Recommendation | A fixed RSI + MACD rule (BUY / SELL / HOLD) | Weighted composite of technical, fundamental, sentiment, and risk scores |
+| Needs an LLM? | No | Yes (Ollama, Groq, OpenAI, …) |
+| Used by | The web UI and API clients | `FinancialResearchAgent`, `python -m src.cli analyze` |
+
+A response from the REST API looks like this (numbers are illustrative):
 
 ```
-✅ Recommendation: BUY
-📊 Confidence: 85%
-💬 Reasoning: Strong fundamentals + positive news sentiment
+✅ Recommendation: HOLD        (rule: BUY if RSI < 30 and MACD rising,
+📊 Confidence: 50%              SELL if RSI > 70 and MACD falling, else HOLD)
 
-Technical Analysis: RSI at 58.3, bullish MACD
-Fundamental Analysis: P/E ratio 28.5 (reasonable)
-Sentiment Analysis: News is 68% positive
-Risk Analysis: Medium volatility
+Technical: RSI 58.3, MACD, moving averages     (computed from 1 year of prices)
+Fundamental: company profile + price data
+Sentiment: news headlines scored by FinBERT (with fallbacks)
+Risk: annual volatility, 95% VaR, Sharpe ratio  (from real daily returns)
 ```
 
-That's it! The system did all the research automatically.
+The system does the data gathering and the calculations automatically.
 
 ---
 
@@ -159,51 +165,29 @@ CUSTOMER gets final result
 ### The Technical Version
 
 ```
-┌──────────────────────────────────────────────┐
-│  User makes request via REST API             │
-│  (e.g., "Analyze AAPL")                      │
-└──────────────────────────────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────────┐
-│  FastAPI Routes (src/api/routes.py)          │
-│  Receives request, validates input           │
-└──────────────────────────────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────────┐
-│  FinancialResearchAgent                      │
-│  Main entry point, creates orchestrator      │
-└──────────────────────────────────────────────┘
-                     │
-                     ▼
-┌──────────────────────────────────────────────┐
-│  OrchestratorAgent (The Conductor)           │
-│  "I'll coordinate all the specialists"       │
-└──────────────────────────────────────────────┘
-                     │
-        ┌────────────┼────────────┬────────────┐
-        │            │            │            │
-        ▼            ▼            ▼            ▼
-    ┌─────┐     ┌─────┐      ┌─────┐      ┌─────┐
-    │Data │     │Tech │      │Fund │      │Sent │  (Run in
-    │Coll │     │Anal │      │Anal │      │Anal │   parallel)
-    └─────┘     └─────┘      └─────┘      └─────┘
-        │            │            │            │
-        └────────────┼────────────┬────────────┘
-                     │
-        ┌────────────▼────────────┐
-        │  Report Generator       │
-        │  Combines all results   │
-        └────────────┬────────────┘
-                     │
-                     ▼
-        ┌────────────────────────┐
-        │  Final Result to User  │
-        │  Recommendation: BUY   │
-        │  Confidence: 85%       │
-        └────────────────────────┘
+ PATH A — REST API / web UI                PATH B — AI agent pipeline
+ ─────────────────────────                 ──────────────────────────
+ POST /api/v1/analyze                      FinancialResearchAgent().analyze("AAPL")
+        │                                  (Python, or: python -m src.cli analyze AAPL)
+        ▼                                          │
+ src/api/routes.py::analyze_stock                  ▼
+   ├─ get_stock_price()                     OrchestratorAgent
+   ├─ get_historical_data()                   1. DataCollector (runs first)
+   ├─ calculate_rsi / macd / MAs              2. In parallel (asyncio.gather):
+   ├─ get_company_info()                         Technical · Fundamental ·
+   ├─ _compute_sentiment()  (FinBERT)            Sentiment · Risk
+   ├─ _compute_risk_metrics()                 3. Confidence check (flags low scores)
+   └─ RSI + MACD rule → BUY / SELL / HOLD     4. ReportGenerator → weighted
+        │                                        composite → recommendation
+        ▼                                          │
+ JSON response (no LLM involved)                   ▼
+                                           Result dict / report (LLM reasoning)
 ```
+
+The REST API never calls `FinancialResearchAgent`. A few endpoints
+(`/theme/{id}`, `/disruption/analyze`, `/earnings/analyze`, and their
+`/compare` variants) can *optionally* ask a single agent for an LLM-written
+narrative when you pass `include_narrative: true`.
 
 ---
 
@@ -248,6 +232,7 @@ All specific consultants follow this template.
 | **RiskAnalyst** | Risk Manager | Calculates volatility, Value at Risk, correlation |
 | **ReportGenerator** | Report Writer | Combines all findings into a coherent recommendation |
 | **OrchestratorAgent** | Project Manager | Coordinates all other agents, manages workflow |
+| **Thematic / Disruption / Earnings / Dividend / Options** | Specialist analysts | Theme exposure, disruption profile, earnings quality, dividend safety, options flow |
 
 ### 2. **Tools** - The Instruments
 
@@ -302,10 +287,18 @@ Gets result back
 
 **Available APIs**:
 
-- `POST /api/v1/analyze` → Analyze a stock
-- `GET /api/v1/technical/AAPL` → Get just technical analysis
-- `GET /api/v1/health` → Check if system is working
-- `POST /api/v1/portfolio` → Analyze multiple stocks
+- `POST /api/v1/analyze` → Analyze a stock (real indicators, risk, and news sentiment; rule-based recommendation)
+- `GET /api/v1/technical/AAPL` → Just the technical indicators
+- `GET /api/v1/ratios/AAPL`, `GET /api/v1/dcf/AAPL` → 16-metric ratios profile, DCF valuation
+- `GET /health` → Check if the system is working (note: no `/api/v1` prefix)
+- `GET /docs` → Interactive list of every endpoint
+
+> ⚠️ Four endpoints are still **placeholders** that return the same values for
+> every input: `GET /api/v1/sentiment/{symbol}` (always "positive", 0.65),
+> `GET /api/v1/market/summary` (fixed index prices), `POST /api/v1/portfolio`
+> (fixed diversification score and advice), and `POST /api/v1/reports` (a stub
+> report). Use `/analyze` for real sentiment. See the "Still Open" section of
+> `docs/ROOT_CAUSE_ANALYSIS.md`.
 
 ### 4. **Configuration** - The Settings
 
@@ -316,7 +309,7 @@ This is where you configure **settings**:
 ```
 What LLM to use? (OpenAI? Ollama? Local?)
 What temperature? (0 = deterministic, 1 = creative)
-What database? (PostgreSQL? SQLite?)
+Which market-data provider? (yfinance, FMP, Alpha Vantage, OpenBB)
 What API keys? (OpenAI, NewsAPI, etc.)
 ```
 
@@ -363,157 +356,108 @@ async def analyze_stock(request: AnalysisRequest):
 
 ---
 
-#### **Step 2: Initialize the Main Agent**
+#### **Step 2: Fetch Market Data**
 
 ```
-File: src/api/routes.py
+File: src/api/routes.py::analyze_stock
 
-agent = FinancialResearchAgent()
-# This is like saying "Hire the head chef"
+price_data = get_stock_price("AAPL")                 # current price
+hist_data  = get_historical_data("AAPL", "1y")       # a year of closes + returns
+company    = get_company_info("AAPL")                # sector, market cap, …
 ```
 
-**What happens internally**:
-
-- Creates the Orchestrator Agent (project manager)
-- Initializes the LLM (AI model)
-- Loads all tools
-- Prepares for work
+These are plain tool functions from `src/tools/market_data.py`, which read
+through the configured data provider (`DATA_PROVIDER`, default yfinance).
+**No agent and no LLM is involved in this path.**
 
 ---
 
-#### **Step 3: Orchestrator Delegates Tasks**
+#### **Step 3: Compute Indicators, Risk, and Sentiment**
 
 ```
-File: src/agents/orchestrator.py
-
-# Head chef says: "I need analysis of AAPL"
-# Delegates to all specialists in parallel
-
-results = await asyncio.gather(
-    data_collector.execute("AAPL"),      # Get price & history
-    technical_analyst.execute("AAPL"),   # Calculate indicators
-    fundamental_analyst.execute("AAPL"), # Get P/E, earnings, etc.
-    sentiment_analyst.execute("AAPL"),   # Analyze news
-    risk_analyst.execute("AAPL"),        # Calculate risk
-)
-
-# All 5 agents work at the SAME TIME (parallel)
-# Faster than if they worked one-by-one
-```
-
-**Timeline**:
-
-```
-WITHOUT parallel (sequential):
-DataCollector:    ████░░░░░░░░░░░ (2 sec)
-Technical:              ████░░░░░░░░░░░ (2 sec)
-Fundamental:                ████░░░░░░░░░░░ (2 sec)
-Sentiment:                      ████░░░░░░░░░░░ (2 sec)
-Risk:                               ████░░░░░░░░░░░ (2 sec)
-Total:                                          ████ 10 seconds ❌
-
-WITH parallel (async):
-DataCollector:    ████░░░░░░░░░░░░░░░░░░░░
-Technical:        ████░░░░░░░░░░░░░░░░░░░░
-Fundamental:      ████░░░░░░░░░░░░░░░░░░░░
-Sentiment:        ████░░░░░░░░░░░░░░░░░░░░
-Risk:             ████░░░░░░░░░░░░░░░░░░░░
-Total:            ████░░░░░░░░░░░░░░░░░░░░
-                  2-3 seconds ✅ Much faster!
-```
-
----
-
-#### **Step 4: Each Agent Works**
-
-**Example: DataCollector Agent**
-
-```
-Agent thinks:
-"I need AAPL stock data"
-
-Calls tools:
-1. get_stock_price("AAPL")
-   → Yahoo Finance returns: {"price": 185.50, "change": +2.3%}
-
-2. get_historical_data("AAPL", period="1y")
-   → Returns: [180, 182, 183, 185, 187, 190, ...]
-
-3. get_company_info("AAPL")
-   → Returns: {"sector": "Technology", "market_cap": 2.8T, ...}
-
-Returns result:
-{
-  "success": True,
-  "data": {
-    "current_price": 185.50,
-    "history": [...],
-    "company_info": {...}
-  }
+technical = {
+    "rsi": calculate_rsi(closes),
+    "macd": calculate_macd(closes),
+    "moving_averages": calculate_moving_averages(closes),
 }
+risk      = _compute_risk_metrics(hist_data["returns"])  # volatility, VaR 95%, Sharpe
+sentiment = _compute_sentiment("AAPL")                    # FinBERT-scored headlines
 ```
+
+Sentiment uses FinBERT, a ~440 MB model. The **first** request after starting
+the server can take 10–90 seconds while it loads; later requests are fast.
+(On the Vercel deployment FinBERT isn't installed, so a lighter fallback is used.)
 
 ---
 
-#### **Step 5: Report Generator Combines Results**
+#### **Step 4: Apply the Recommendation Rule**
 
 ```
-Generator receives all results:
-
-DataCollector result: {current_price: 185.50, ...}
-TechnicalAnalyst result: {rsi: 58.3, macd: positive, ...}
-FundamentalAnalyst result: {pe_ratio: 28.5, eps_growth: 12.1%, ...}
-SentimentAnalyst result: {score: 0.72, news: positive, ...}
-RiskAnalyst result: {volatility: medium, sharpe: 1.8, ...}
-
-Generator thinks:
-"Good fundamentals (0.35 weight) = +30 points
- Positive sentiment (0.20 weight) = +15 points
- Technical signals buy (0.25 weight) = +20 points
- Medium risk acceptable (0.20 weight) = +20 points
- Total score: 85 points out of 100"
-
-Recommendation:
-{
-  "recommendation": "BUY",
-  "confidence": 0.85,
-  "reasoning": "Strong fundamentals combined with positive momentum...",
-  "target_price": 195.00
-}
+if rsi < 30 and macd_histogram > 0:   recommendation, confidence = "BUY", 0.75
+elif rsi > 70 and macd_histogram < 0: recommendation, confidence = "SELL", 0.75
+else:                                 recommendation, confidence = "HOLD", 0.50
 ```
+
+This is a simple, transparent rule — not an AI vote.
 
 ---
 
-#### **Step 6: Response Sent Back to User**
+#### **Step 5: Response Sent Back to User**
 
 ```json
 {
   "symbol": "AAPL",
-  "recommendation": "BUY",
-  "confidence": 0.85,
+  "analysis_type": "comprehensive",
   "current_price": 185.50,
-  "technical": {
-    "rsi": 58.3,
-    "macd": "positive",
-    "trend": "bullish"
-  },
-  "fundamental": {
-    "pe_ratio": 28.5,
-    "eps_growth": 12.1,
-    "roe": 147.3
-  },
-  "sentiment": {
-    "score": 0.72,
-    "news": "positive"
-  },
-  "risk": {
-    "volatility": "medium"
-  },
+  "recommendation": "HOLD",
+  "confidence": 0.5,
+  "summary": "AAPL is currently trading at $185.50. Technical indicators suggest a HOLD signal with 50% confidence.",
+  "technical": {"rsi": {...}, "macd": {...}, "moving_averages": {...}},
+  "fundamental": {"company": {...}, "price_data": {...}},
+  "sentiment": {"score": 0.21, "label": "Positive", "engine": "finbert", ...},
+  "risk": {"annual_volatility_pct": 24.5, "var_95_daily_pct": -2.0, "sharpe_ratio": 1.3, "volatility": "Medium"},
   "execution_time_seconds": 2.5
 }
 ```
 
-**User receives**: Professional stock analysis in 2.5 seconds! ⚡
+(Values are illustrative.)
+
+---
+
+### The Other Path: The AI Agent Pipeline
+
+When you run `FinancialResearchAgent().analyze("AAPL")` from Python, or
+`python -m src.cli analyze AAPL`, the multi-agent system runs instead:
+
+```
+File: src/agents/orchestrator.py::OrchestratorAgent.analyze
+
+1. data_result = await data_collector.collect_comprehensive_data(symbol)  # first, on its own
+
+2. results = await asyncio.gather(                              # then 4 in parallel
+       technical_analyst.analyze_stock(...),
+       fundamental_analyst.analyze_company(...),
+       sentiment_analyst.analyze_sentiment(...),
+       risk_analyst.analyze_risk(...),
+   )
+
+3. Confidence check: any analyst with confidence below 0.4 is flagged in
+   results["confidence_warnings"]
+
+4. report = await report_generator.generate_report(symbol, results)
+```
+
+The report generator blends the four scores with the weights in
+`config/agents.yaml`:
+
+```
+composite = technical × 0.25 + fundamental × 0.35 + sentiment × 0.20 + (1 − risk) × 0.20
+
+≥ 0.80 Strong Buy · ≥ 0.65 Buy · ≥ 0.45 Hold · ≥ 0.30 Sell · below that Strong Sell
+```
+
+Each analyst is an LLM agent that decides which tools to call, so this path
+needs a working LLM provider and is much slower than the REST API.
 
 ---
 
@@ -547,7 +491,7 @@ Recommendation:
 ```bash
 # Copy-paste this into terminal
 
-git clone https://github.com/YOUR_USERNAME/financial-research-analyst-agent.git
+git clone https://github.com/morid648/financial-research-analyst-agent.git
 cd financial-research-analyst-agent
 ```
 
@@ -607,7 +551,7 @@ cp .env.example .env
 ```
 LLM_PROVIDER=ollama          # Use local Ollama
 OLLAMA_MODEL=llama4:latest   # Which model to use
-API_PORT=8000                # API will run on port 8000
+DATA_PROVIDER=yfinance       # Free market data, no API key
 DEBUG=false                  # Production mode
 ```
 
@@ -624,9 +568,14 @@ ollama serve               # Start the server
 
 **What's happening?**
 
-- Downloading a 7B parameter model (~4GB)
+- Downloading the Llama 4 model. It is **large** (tens of GB) and needs a
+  powerful machine; on a laptop, pull a smaller model (for example
+  `ollama pull llama3.2`) and set `OLLAMA_MODEL` to match
 - Starting the AI server on localhost:11434
 - This is completely free and runs locally!
+
+> The REST API and web UI work **without** an LLM. You only need one for the
+> AI agent pipeline and the optional `include_narrative` outlooks.
 
 #### Step 6: Start the API (1 minute)
 
@@ -660,7 +609,8 @@ curl http://localhost:8000/health
   "uptime_seconds": 5.2,
   "checks": {
     "market_data": "healthy",
-    "agent_engine": "healthy"
+    "agent_engine": "healthy",
+    "data_processing": "healthy"
   }
 }
 ```
@@ -682,10 +632,9 @@ curl -X POST http://localhost:8000/api/v1/analyze \
 **Or visit in browser:**
 
 ```
-http://localhost:8000/docs
+http://localhost:8000/        # the web UI (quote, /ratios, /dcf, /dashboard)
+http://localhost:8000/docs    # Swagger UI - interactive API explorer
 ```
-
-This opens Swagger UI - an interactive API explorer where you can test endpoints!
 
 ---
 
@@ -695,53 +644,42 @@ This opens Swagger UI - an interactive API explorer where you can test endpoints
 financial-research-analyst-agent/
 │
 ├── src/                          # 👈 All source code here
+│   ├── main.py                   # 📍 START HERE — `api` or `demo`
+│   ├── cli.py                    # `analyze`, `portfolio`, `dashboard` commands
+│   ├── config.py                 # ⚙️ Pydantic settings (reads .env)
 │   │
-│   ├── main.py                   # 📍 START HERE
-│   │                             # Entry point (runs the API)
+│   ├── agents/                   # 🤖 The AI specialists (LLM agents)
+│   │   ├── base.py               # BaseAgent: LLM setup, tools, state
+│   │   ├── orchestrator.py       # Coordinates the pipeline
+│   │   ├── data_collector.py, technical.py, fundamental.py,
+│   │   │   sentiment.py, risk.py, report_generator.py
+│   │   └── thematic.py, disruption.py, earnings.py, dividend.py, options.py
 │   │
-│   ├── agents/                   # 🤖 The AI specialists
-│   │   ├── base.py               # Template for all agents
-│   │   ├── orchestrator.py        # Project manager agent
-│   │   ├── data_collector.py      # Gets market data
-│   │   ├── technical.py           # Technical analysis
-│   │   ├── fundamental.py         # Company analysis
-│   │   ├── sentiment.py           # News analysis
-│   │   ├── risk.py                # Risk analysis
-│   │   └── report_generator.py    # Combines results
+│   ├── tools/                    # 🔧 39 analysis modules (plain Python functions)
+│   │   ├── market_data.py        # Prices, history, ratios profile, DCF profile
+│   │   ├── technical_indicators.py
+│   │   ├── financial_metrics.py
+│   │   └── …                     # DCF, Monte Carlo, portfolio optimizer, etc.
 │   │
-│   ├── tools/                    # 🔧 Agent's instruments
-│   │   ├── market_data.py         # Fetch stock prices
-│   │   ├── technical_indicators.py # Calculate RSI, MACD
-│   │   ├── news_fetcher.py        # Get news articles
-│   │   └── financial_metrics.py   # Calculate metrics
-│   │
-│   ├── api/                      # 🌐 REST API
-│   │   ├── routes.py              # Define endpoints (/analyze, /health, etc.)
-│   │   └── schemas.py             # Validate requests/responses
-│   │
-│   ├── config.py                 # ⚙️ Configuration settings
-│   │
-│   └── utils/                    # 🛠️ Helper functions
-│       ├── logger.py              # Logging
-│       └── helpers.py             # Utilities
+│   ├── data/                     # Market-data providers (yfinance, FMP, …)
+│   ├── rag/                      # SEC-filing search (optional, needs ChromaDB)
+│   ├── models/                   # Data models
+│   ├── api/
+│   │   ├── routes.py             # All HTTP endpoints + static page routes
+│   │   └── schemas.py            # Request/response models
+│   └── utils/
+│       ├── logger.py
+│       └── helpers.py
 │
-├── tests/                        # 🧪 Unit tests
-│   ├── test_agents.py
-│   ├── test_tools.py
-│   └── test_api.py
-│
-├── docs/                         # 📚 Documentation
-│   ├── ONBOARDING.md             # This file!
-│   ├── architecture.md           # Detailed architecture
-│   └── api_reference.md          # API documentation
-│
-├── config/                       # ⚙️ Configuration files
-│   └── agents.yaml               # Agent settings
+├── static/                       # 🌐 Web UI (HTML/CSS/JS)
+├── tests/                        # 🧪 375 tests across 19 files
+├── config/                       # agents.yaml (weights), themes.yaml (17 themes)
+├── docs/                         # 📚 This guide, ARCHITECTURE.md, audit reports
 │
 ├── .env.example                  # Environment template
-├── requirements.txt              # Python dependencies
-├── Dockerfile                    # Docker config
-├── docker-compose.yml            # Multi-container setup
+├── requirements.txt              # Full Python dependencies (local, Docker, CI)
+├── pyproject.toml                # Slim dependencies (Vercel only)
+├── Dockerfile, docker-compose.yml
 ├── CLAUDE.md                     # Developer guidelines
 └── README.md                     # Project README
 ```
@@ -802,7 +740,9 @@ def get_stock_price(symbol: str) -> float:
     return yahoo_finance.fetch(symbol)
 
 # Step 2: Register tool with agent
-agent = TechnicalAnalyst(tools=[get_stock_price])
+# (each agent returns its tools from _get_default_tools(); you can also
+#  pass tools=[...] to the BaseAgent constructor)
+agent = TechnicalAnalystAgent()
 
 # Step 3: Agent uses it automatically!
 agent.analyze("AAPL")
@@ -822,6 +762,7 @@ class AgentState:
     agent_name: str          # "TechnicalAnalyst"
     status: str              # "idle" / "running" / "completed" / "error"
     current_task: str        # "Calculating RSI"
+    messages: list           # Conversation with the LLM
     started_at: datetime     # When did it start?
     completed_at: datetime   # When did it finish?
     results: dict            # What were the results?
@@ -854,10 +795,15 @@ LLM_PROVIDER=openai          # Use OpenAI's GPT-4
 LLM_TEMPERATURE=0.1          # Low = deterministic (consistent)
 LLM_TEMPERATURE=0.9          # High = creative (different each time)
 
-API_PORT=8000                # API listens on port 8000
+PORT=8000                    # API port (see note below)
 LOG_LEVEL=INFO               # Show info-level logs
 DEBUG=false                  # Disable debug mode
 ```
+
+> ⚠️ **Known issue:** `.env.example` lists `API_PORT`, `API_HOST`, and
+> `API_RELOAD`, but `src/config.py` currently reads `PORT`, `HOST`, and
+> `RELOAD` instead (Pydantic v2 ignores the `env=` aliases), so the `API_*`
+> names have no effect. Use the short names until that is fixed.
 
 **Why?** So you can change behavior without touching code:
 
@@ -876,7 +822,7 @@ curl -X POST http://localhost:8000/api/v1/analyze \
   -H "Content-Type: application/json" \
   -d '{"symbol": "AAPL", "analysis_type": "comprehensive"}'
 
-# Or using Python:
+# Or run the full AI agent pipeline from Python (needs an LLM):
 from src.agents import FinancialResearchAgent
 
 agent = FinancialResearchAgent()
@@ -912,32 +858,41 @@ python -m src.main api
 
 ### Task 3: Add a New Analysis Metric
 
-**Example: Add "Dividend Yield" to fundamental analysis**
+**Example: Give the FundamentalAnalyst agent a dividend-yield tool**
 
 ```python
-# Step 1: Create tool in src/tools/financial_metrics.py
-@tool
-def get_dividend_yield(symbol: str) -> float:
-    """Get dividend yield percentage"""
-    stock = yfinance.Ticker(symbol)
-    return stock.info.get('dividendYield', 0)
-
-# Step 2: Add to FundamentalAnalyst's tools
 # File: src/agents/fundamental.py
-class FundamentalAnalyst(BaseAgent):
-    def __init__(self):
-        super().__init__(
-            tools=[
-                calculate_pe_ratio,
-                calculate_eps,
-                get_dividend_yield,  # ← Add here
-            ]
-        )
+# Agents define their tools inside _get_default_tools(). Add one:
 
-# Step 3: Test it
-curl http://localhost:8000/api/v1/fundamental/AAPL
-# Response will now include dividend yield!
+class FundamentalAnalystAgent(BaseAgent):
+    def _get_default_tools(self) -> List[BaseTool]:
+
+        @tool("get_dividend_yield")
+        def get_dividend_yield_tool(symbol: str) -> Dict[str, Any]:
+            """Get the dividend yield (in percent) for a stock."""
+            from src.data import get_provider
+            info = get_provider().get_info(symbol)
+            # yfinance already reports dividendYield as a percentage
+            return {"symbol": symbol, "dividend_yield_pct": info.get("dividendYield")}
+
+        return [
+            calculate_valuation_ratios_tool,
+            # … existing tools …
+            get_dividend_yield_tool,          # ← add here
+        ]
 ```
+
+Then test it through the **agent pipeline** (the REST endpoint
+`/api/v1/fundamental/{symbol}` does not use agents, so it won't change):
+
+```python
+from src.agents.fundamental import FundamentalAnalystAgent
+agent = FundamentalAnalystAgent()
+print([t.name for t in agent.tools])   # should include "get_dividend_yield"
+```
+
+Dividend data is also already available without agents via
+`GET /api/v1/dividends/{symbol}`.
 
 ---
 
@@ -952,10 +907,10 @@ pytest tests/ -v
 **Output example:**
 
 ```
-test_agents.py::TestTechnicalAnalyst::test_rsi PASSED ✓
-test_agents.py::TestFundamentalAnalyst::test_pe_ratio PASSED ✓
-test_api.py::test_health_endpoint PASSED ✓
-==================== 3 passed in 0.24s ====================
+tests/test_agents.py::TestTechnicalAnalystAgent::... PASSED
+tests/test_api.py::TestHealthEndpoint::test_health_check PASSED
+...
+==================== 375 passed in ~2-3 min ====================
 ```
 
 ---
@@ -964,7 +919,7 @@ test_api.py::test_health_endpoint PASSED ✓
 
 ```bash
 # Just test technical analysis
-pytest tests/test_agents.py::TestTechnicalAnalyst -v
+pytest tests/test_agents.py::TestTechnicalAnalystAgent -v
 
 # Just test API endpoints
 pytest tests/test_api.py -v
@@ -1019,6 +974,18 @@ docker-compose down         # Stop all
 
 ---
 
+### Option 4: Vercel (serverless)
+
+Pushing to `main` deploys to Vercel. Vercel installs the **slim** dependency
+list in `pyproject.toml` (the full `requirements.txt` is ~6 GB, over Vercel's
+500 MB limit, and is hidden by `.vercelignore`). So on Vercel:
+
+- FinBERT, RAG/ChromaDB, and PDF/Excel export are unavailable
+- Ollama can't be reached — set `LLM_PROVIDER=groq` and `GROQ_API_KEY`
+- Empty environment variables fall back to their defaults
+
+---
+
 ## 📚 Glossary: Technical Terms Explained
 
 | Term | Meaning | Example |
@@ -1053,11 +1020,16 @@ docker-compose down         # Stop all
 
 ### Q: How long does analysis take?
 
-**A:** 2-3 seconds for a single stock (parallel execution).
+**A:** `POST /api/v1/analyze` usually takes a few seconds, but the first call
+after a server start can take 10–90 s while the FinBERT model loads. The AI
+agent pipeline takes much longer, because each agent makes several LLM calls.
 
 ### Q: Can I analyze multiple stocks at once?
 
-**A:** Yes! Use the portfolio endpoint: `POST /api/v1/portfolio`
+**A:** Partly. `POST /api/v1/portfolio` returns each stock's price, but its
+portfolio metrics are placeholders today. For real portfolio math use
+`POST /api/v1/portfolio/optimize` (and `/rebalance`, `/benchmark`, …), or
+`python -m src.cli portfolio AAPL MSFT` for the agent pipeline.
 
 ### Q: Is my API key safe?
 
@@ -1069,7 +1041,8 @@ docker-compose down         # Stop all
 
 ### Q: Can I modify agent logic?
 
-**A:** Yes! Edit `src/agents/*.py` and restart API.
+**A:** Yes! Edit `src/agents/*.py`. Note that agent changes affect the Python/CLI
+pipeline and the `include_narrative` outlooks, not `POST /api/v1/analyze`.
 
 ### Q: How do I add a new agent?
 
@@ -1132,7 +1105,7 @@ docker-compose down         # Stop all
 ## 📞 Getting Help
 
 - **Setup issues?** Check CLAUDE.md
-- **Code questions?** Check docs/ folder
+- **Code questions?** Check `docs/ARCHITECTURE.md`
 - **Don't understand something?** Re-read relevant section (it gets clearer!)
 - **Found a bug?** Open GitHub issue
 - **Have ideas?** Discuss in team channels
@@ -1144,8 +1117,9 @@ docker-compose down         # Stop all
 ### For This Project
 
 - README.md - Project overview
-- docs/architecture.md - Deep technical details
-- docs/api_reference.md - API endpoints
+- docs/ARCHITECTURE.md - Deep technical details
+- `http://localhost:8000/docs` - Live API reference (Swagger UI)
+- docs/ROOT_CAUSE_ANALYSIS.md - The accuracy audit (17 findings)
 - CLAUDE.md - Developer guidelines
 - tests/ - Working code examples
 
@@ -1173,6 +1147,6 @@ You now understand:
 
 ---
 
-**Last Updated**: February 7, 2026
-**Document Version**: 2.0 (Beginner-Friendly)
+**Last Updated**: September 26, 2026 (checked against the code)
+**Document Version**: 2.1 (Beginner-Friendly)
 **Audience**: Engineers with minimal project knowledge

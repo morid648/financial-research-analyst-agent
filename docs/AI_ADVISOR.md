@@ -1,15 +1,17 @@
 # AI Financial Advisor — Technical Documentation
 
-> ⚠️ **Historical planning document.** Written during an earlier phase and not
-> updated for the current codebase — it references the Streamlit `frontend/`
-> app, PostgreSQL and Redis, all of which have since been removed as unused
-> (see [`docs/ROOT_CAUSE_ANALYSIS.md`](ROOT_CAUSE_ANALYSIS.md) and the main
-> [`README.md`](../README.md) for the current state). Kept for history, not
-> as a guide to what's running today.
+> ⚠️ **This feature does not exist in the current codebase.** This document
+> describes an "AI Advisor" chat page (`frontend/pages/13_AI_Advisor.py`) from
+> the Streamlit app, which was removed — there is no `frontend/` directory, no
+> advisor page in `static/`, and no advisor endpoint in `src/api/routes.py`.
+> The analysis tools it called (`src/tools/*.py`, listed below) still exist and
+> are used by the agents and API. Kept as a design record only; for what runs
+> today see [`ARCHITECTURE.md`](ARCHITECTURE.md) and the main
+> [`README.md`](../README.md).
 
 > **Feature**: AI Advisor (Page 13)
 > **Version**: 2.0 — Enhanced with context injection, parallel execution, and 9 analysis tools
-> **Files**: [13_AI_Advisor.py](../frontend/pages/13_AI_Advisor.py), [data_service.py](../frontend/utils/data_service.py)
+> **Files**: `13_AI_Advisor.py` *(removed)*, `data_service.py` *(removed)*
 
 ---
 
@@ -201,7 +203,7 @@ The advisor processes every query through a **5-step pipeline**:
 > [!NOTE]
 > Profile extraction uses **pure regex and keyword matching** — no LLM call required. This keeps it fast and deterministic.
 
-**Source**: [_extract_user_profile()](../frontend/utils/data_service.py#L586-L656)
+**Source**: `_extract_user_profile()` *(removed)*
 
 ### Step 2: Ticker Pre-Fetch
 
@@ -217,7 +219,7 @@ User: "Compare QQQ vs VOO for long-term growth"
     Injected as ═══ PRE-FETCHED MARKET DATA ═══ in system prompt
 ```
 
-**Source**: [_extract_tickers()](../frontend/utils/data_service.py#L534-L562), [_fetch_ticker_snapshot()](../frontend/utils/data_service.py#L735-L789)
+**Source**: `_extract_tickers()` *(removed)*, `_fetch_ticker_snapshot()` *(removed)*
 
 ### Step 3: Chat Summarization
 
@@ -227,7 +229,7 @@ If conversation_length > 6 messages:
     recent_6_messages → Kept verbatim
 ```
 
-**Source**: [_summarize_chat_history()](../frontend/utils/data_service.py#L696-L729)
+**Source**: `_summarize_chat_history()` *(removed)*
 
 ### Step 4: LLM Tool-Calling Loop
 
@@ -251,7 +253,7 @@ graph LR
 - **Parallel execution**: `ThreadPoolExecutor(max_workers=5)` when multiple tools are called in the same round
 - **Single tool**: Runs directly without thread pool overhead
 
-**Source**: [ask_advisor()](../frontend/utils/data_service.py#L1009-L1281)
+**Source**: `ask_advisor()` *(removed)*
 
 ### Step 5: Response Validation
 
@@ -262,7 +264,7 @@ Checks the final LLM response and auto-fixes issues:
 | Contains recommendation keywords (buy, sell, hold, etc.) but no disclaimer | Appends standard disclaimer |
 | Empty response | Returns as-is |
 
-**Source**: [_validate_advisor_response()](../frontend/utils/data_service.py#L1293-L1319)
+**Source**: `_validate_advisor_response()` *(removed)*
 
 ---
 
@@ -272,15 +274,15 @@ Checks the final LLM response and auto-fixes issues:
 
 | # | Tool Name | Icon | Underlying Module | Data Source | TTL Cache | Key Outputs |
 |---|---|---|---|---|---|---|
-| 1 | [lookup_ticker](../frontend/utils/data_service.py#1102-1110) | 📊 | `yfinance` (direct) | Yahoo Finance | None | Price, returns (1m/3m/YTD/1y), P/E, forward P/E, PEG, beta, dividend yield, analyst target, recommendation |
-| 2 | [run_technical](../frontend/utils/data_service.py#1111-1120) | 📈 | `src.tools.technical_indicators` | Yahoo Finance | 300s | RSI, MACD, SMA/EMA, Bollinger Bands, support/resistance, chart patterns |
-| 3 | [run_fundamentals](../frontend/utils/data_service.py#1121-1130) | 📋 | `src.tools.financial_metrics` | Yahoo Finance | 1800s | P/E, P/B, EV/EBITDA, ROE, ROA, profit margins, debt ratios, financial health score |
-| 4 | [run_dividends](../frontend/utils/data_service.py#1131-1140) | 💰 | `src.tools.dividend_analyzer` | Yahoo Finance | 1800s | Yield, safety score, payout ratio, growth history, Dividend King/Aristocrat classification |
-| 5 | [run_earnings](../frontend/utils/data_service.py#1141-1150) | 📑 | `src.tools.earnings_data` | Yahoo Finance | 1800s | EPS actual vs estimates, beat/miss patterns, quarterly trends, earnings quality score |
-| 6 | [run_sentiment](../frontend/utils/data_service.py#1151-1160) | 📰 | `src.tools.news_impact` | News APIs | 600s | Aggregated sentiment score, article count, topic extraction |
-| 7 | [run_peers](../frontend/utils/data_service.py#1161-1170) | 🔄 | `src.tools.peer_comparison` | Yahoo Finance | 1800s | Sector peer comparison on valuation, performance, profitability |
-| 8 | [run_options](../frontend/utils/data_service.py#1171-1181) | ⚡ | `src.tools.options_analyzer` | Yahoo Finance | None | Put/call ratio, implied volatility (volume-weighted), IV skew, max pain, unusual activity (top 5), options sentiment score (0-100) |
-| 9 | [run_insider](../frontend/utils/data_service.py#1182-1193) | 🔍 | `src.tools.insider_activity` | Yahoo Finance | None | Form 4 insider transactions (90d), cluster buying detection, institutional ownership, top holders, smart money score (0-100) |
+| 1 | `lookup_ticker` *(removed)* | 📊 | `yfinance` (direct) | Yahoo Finance | None | Price, returns (1m/3m/YTD/1y), P/E, forward P/E, PEG, beta, dividend yield, analyst target, recommendation |
+| 2 | `run_technical` *(removed)* | 📈 | `src.tools.technical_indicators` | Yahoo Finance | 300s | RSI, MACD, SMA/EMA, Bollinger Bands, support/resistance, chart patterns |
+| 3 | `run_fundamentals` *(removed)* | 📋 | `src.tools.financial_metrics` | Yahoo Finance | 1800s | P/E, P/B, EV/EBITDA, ROE, ROA, profit margins, debt ratios, financial health score |
+| 4 | `run_dividends` *(removed)* | 💰 | `src.tools.dividend_analyzer` | Yahoo Finance | 1800s | Yield, safety score, payout ratio, growth history, Dividend King/Aristocrat classification |
+| 5 | `run_earnings` *(removed)* | 📑 | `src.tools.earnings_data` | Yahoo Finance | 1800s | EPS actual vs estimates, beat/miss patterns, quarterly trends, earnings quality score |
+| 6 | `run_sentiment` *(removed)* | 📰 | `src.tools.news_impact` | News APIs | 600s | Aggregated sentiment score, article count, topic extraction |
+| 7 | `run_peers` *(removed)* | 🔄 | `src.tools.peer_comparison` | Yahoo Finance | 1800s | Sector peer comparison on valuation, performance, profitability |
+| 8 | `run_options` *(removed)* | ⚡ | `src.tools.options_analyzer` | Yahoo Finance | None | Put/call ratio, implied volatility (volume-weighted), IV skew, max pain, unusual activity (top 5), options sentiment score (0-100) |
+| 9 | `run_insider` *(removed)* | 🔍 | `src.tools.insider_activity` | Yahoo Finance | None | Form 4 insider transactions (90d), cluster buying detection, institutional ownership, top holders, smart money score (0-100) |
 
 ### Tool Usage Strategy
 
@@ -322,7 +324,7 @@ graph LR
 
 ### Ticker Snapshot Schema
 
-Each [_fetch_ticker_snapshot()](../frontend/utils/data_service.py#735-790) call returns:
+Each `_fetch_ticker_snapshot()` *(removed)* call returns:
 
 ```json
 {
@@ -396,7 +398,7 @@ graph TB
 > [!WARNING]
 > If a provider does not support tool-calling (raises `NotImplementedError`, `TypeError`, or `AttributeError`), the advisor automatically falls back to plain chat mode with pre-fetched context injected as a static context string.
 
-**Source**: [_get_llm()](../frontend/utils/data_service.py#L356-L421)
+**Source**: `_get_llm()` *(removed)*
 
 ---
 
@@ -440,7 +442,7 @@ The advisor uses a **two-phase approach**:
 
 **Exception**: If user preferences are already known (from the profile tracker), skip questions about those already-answered preferences.
 
-**Source**: [_ADVISOR_SYSTEM_PROMPT](../frontend/utils/data_service.py#L895-L1006)
+**Source**: `_ADVISOR_SYSTEM_PROMPT` *(removed)*
 
 ---
 
@@ -463,7 +465,7 @@ Output: ["QQQM", "VOO"]
 > [!NOTE]
 > The filter list includes financial terms (BUY, SELL, HOLD, PUT, CALL, ETF, AI, SEC, IPO) and common short words (IT, ALL, FOR, ARE, etc.) to prevent false positives.
 
-**Source**: [_extract_tickers()](../frontend/utils/data_service.py#L534-L562)
+**Source**: `_extract_tickers()` *(removed)*
 
 ### User Profile Extraction
 
@@ -488,7 +490,7 @@ graph LR
     M1 & M2 & M3 --> R --> P
 ```
 
-**Source**: [_extract_user_profile()](../frontend/utils/data_service.py#L586-L656), [_format_user_profile()](../frontend/utils/data_service.py#L659-L691)
+**Source**: `_extract_user_profile()` *(removed)*, `_format_user_profile()` *(removed)*
 
 ---
 
@@ -509,7 +511,7 @@ graph TD
 
 **Disclaimer fragments checked**: `not personalized`, `financial advice`, `licensed financial advisor`
 
-**Source**: [_validate_advisor_response()](../frontend/utils/data_service.py#L1293-L1319)
+**Source**: `_validate_advisor_response()` *(removed)*
 
 ---
 
@@ -530,7 +532,7 @@ graph TD
 
 | Error Scenario | Handling |
 |---|---|
-| Provider doesn't support tool-calling | Falls back to [ask_financial_question()](../frontend/utils/data_service.py#437-512) with pre-fetched context |
+| Provider doesn't support tool-calling | Falls back to `ask_financial_question()` *(removed)* with pre-fetched context |
 | Tool-calling format error (Groq) | Detects via error message keywords, retries without tools |
 | Tool execution error | Returns `"Tool error: {details}"` as ToolMessage, LLM handles gracefully |
 | LLM provider offline | Returns user-friendly error with details |
@@ -561,26 +563,26 @@ graph TD
 
 ### Progress Display
 
-Each step in the pipeline reports progress via the [on_progress](../frontend/pages/13_AI_Advisor.py#134-138) callback with step-specific icons:
+Each step in the pipeline reports progress via the `on_progress` *(removed)* callback with step-specific icons:
 
 | Step Key | Icon | Example Label |
 |---|---|---|
 | `profiling` | 👤 | Understanding your preferences... |
 | `prefetch` | 📡 | Fetching live data for AAPL, QQQ... |
 | `analyzing` | 🧠 | Analyzing your question... |
-| [lookup](../frontend/utils/data_service.py#1102-1110) | 📊 | Fetching AAPL market data... |
-| [technical](../frontend/utils/data_service.py#1111-1120) | 📈 | Running technical analysis on AAPL (RSI, MACD, Moving Averages)... |
-| [fundamentals](../frontend/utils/data_service.py#1121-1130) | 📋 | Running fundamental analysis on AAPL (Valuation, Profitability, Health)... |
-| [dividends](../frontend/utils/data_service.py#1131-1140) | 💰 | Analyzing AAPL dividend profile (Yield, Safety, Growth History)... |
-| [earnings](../frontend/utils/data_service.py#1141-1150) | 📑 | Analyzing AAPL quarterly earnings (EPS Surprises, Trends, Quality)... |
-| [sentiment](../frontend/utils/data_service.py#1151-1160) | 📰 | Analyzing AAPL news sentiment... |
-| [peers](../frontend/utils/data_service.py#1161-1170) | 🔄 | Comparing AAPL against sector peers... |
-| [options](../frontend/utils/data_service.py#1171-1181) | ⚡ | Analyzing AAPL options flow (Put/Call, IV, Max Pain)... |
-| [insider](../frontend/utils/data_service.py#1182-1193) | 🔍 | Tracking AAPL insider & institutional activity (Smart Money)... |
+| `lookup` *(removed)* | 📊 | Fetching AAPL market data... |
+| `technical` *(removed)* | 📈 | Running technical analysis on AAPL (RSI, MACD, Moving Averages)... |
+| `fundamentals` *(removed)* | 📋 | Running fundamental analysis on AAPL (Valuation, Profitability, Health)... |
+| `dividends` *(removed)* | 💰 | Analyzing AAPL dividend profile (Yield, Safety, Growth History)... |
+| `earnings` *(removed)* | 📑 | Analyzing AAPL quarterly earnings (EPS Surprises, Trends, Quality)... |
+| `sentiment` *(removed)* | 📰 | Analyzing AAPL news sentiment... |
+| `peers` *(removed)* | 🔄 | Comparing AAPL against sector peers... |
+| `options` *(removed)* | ⚡ | Analyzing AAPL options flow (Put/Call, IV, Max Pain)... |
+| `insider` *(removed)* | 🔍 | Tracking AAPL insider & institutional activity (Smart Money)... |
 | `synthesizing` | ✨ | Synthesizing insights & preparing recommendation... |
 | `fallback` | 🔁 | Using conversational mode... / Retrying without tool calling... |
 
-**Source**: [13_AI_Advisor.py progress handlers](../frontend/pages/13_AI_Advisor.py#L117-L137)
+**Source**: `13_AI_Advisor.py progress handlers` *(removed)*
 
 ---
 
@@ -617,8 +619,8 @@ Each step in the pipeline reports progress via the [on_progress](../frontend/pag
 
 | File | Lines | Purpose |
 |---|---|---|
-| [13_AI_Advisor.py](../frontend/pages/13_AI_Advisor.py) | 150 | Streamlit page: chat UI, FAQ templates, progress display |
-| [data_service.py](../frontend/utils/data_service.py) | 1319 | Data service: LLM factory, all tools, orchestrator, pre/post-processing |
+| `13_AI_Advisor.py` *(removed)* | 150 | Streamlit page: chat UI, FAQ templates, progress display |
+| `data_service.py` *(removed)* | 1319 | Data service: LLM factory, all tools, orchestrator, pre/post-processing |
 | [technical_indicators.py](../src/tools/technical_indicators.py) | — | RSI, MACD, Moving Averages, Bollinger Bands, pattern detection |
 | [financial_metrics.py](../src/tools/financial_metrics.py) | — | Valuation ratios, profitability ratios, financial health analysis |
 | [dividend_analyzer.py](../src/tools/dividend_analyzer.py) | — | Dividend yield, safety score, growth history, classification |

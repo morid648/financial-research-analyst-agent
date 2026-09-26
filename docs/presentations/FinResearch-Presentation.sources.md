@@ -12,7 +12,7 @@
 |---|---|---|
 | S1 | `docs/ROOT_CAUSE_ANALYSIS.md` — 17-finding severity table, root-cause themes | Slides 1, 3, 4 (waterfall), 6, 7 |
 | S2 | `docs/ROOT_CAUSE_ANALYSIS.md` finding #7 — Utique Enterprises D/E (1.41 → 0.01), cross-checked against Screener.in | Slides 3, 5 |
-| S3 | `docs/ROOT_CAUSE_ANALYSIS.md` findings #2–#5 — Altman Z-Score, ROCE, Interest Coverage, Cash Conversion Cycle were hardcoded placeholder strings | Slides 3, 6 |
+| S3 | `docs/ROOT_CAUSE_ANALYSIS.md` findings #2–#5 — Altman Z-Score, ROCE, Interest Coverage, Cash Conversion Cycle were never computed from real financials: three were hardcoded placeholder strings, and ROCE was a made-up proxy (`ROE × 1.1`) | Slides 3, 6 |
 | S4 | This session's ponytail repo-wide audit and its execution (frontend/, scratch/, `persistence.py`, `security.py`, `rag_mixin.py` deleted; `sqlalchemy`, `psycopg2-binary`, `alembic`, `redis`, `streamlit` dropped; `db`/`redis` Docker services retired) — exact line counts re-derived via `wc -l` for this deck (10,044 + 697 + 281 + 192 + 246 = 11,460) rather than reused from an earlier rough estimate | Slides 1, 8, 9 |
 | S5 | `README.md` — product capability list (ratios/DCF/risk/sentiment), zero-paid-API-key claim, NSE/BSE/US coverage | Slides 1, 2 |
 | S6 | Live redesign of `static/*` this session — before: 3 accent colors + glassmorphism/glow; after: 1 accent color, hairline borders, no gradients | Slide 8 |
