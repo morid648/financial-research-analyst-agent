@@ -364,9 +364,9 @@
       el('srcGrowth').textContent = SOURCE_LABEL[src.growth] ? `· ${SOURCE_LABEL[src.growth]}` : '';
       el('srcMargin').textContent = SOURCE_LABEL[src.margin] ? `· ${SOURCE_LABEL[src.margin]}` : '';
       el('dcfAssumptionNote').textContent =
-        `${d.model}: statements in US$ millions, value per share converted to ${d.currency_code} at spot. ` +
+        `${d.model}; all figures shown in ${d.display_currency} ${d.unit === 'Cr' ? 'crore' : 'millions'} at the spot rate. ` +
         `Reinvestment: sales-to-capital ${d.sales_to_capital.toFixed(2)} (${src.sales_to_capital === 'industry' ? `Damodaran global average, ${d.industry}` : (SOURCE_LABEL[src.sales_to_capital] || src.sales_to_capital)}). ` +
-        (src.rd ? `R&D ${src.rd} (EBIT +${d.money_symbol}${fmtNum(d.rd_adjustment)} M). ` : '') +
+        (src.rd ? `R&D ${src.rd} (EBIT +${d.money_symbol}${fmtNum(d.rd_adjustment)} ${d.unit}). ` : '') +
         `Tax ${d.effective_tax_rate.toFixed(1)}% effective → ${d.tax_rate.toFixed(0)}% marginal. ` +
         `Beta ${d.beta.toFixed(2)} (${SOURCE_LABEL[src.beta] || src.beta}); ERP ${d.erp.toFixed(2)}% for ${src.country} (Damodaran, Jul 2026); ` +
         `Rf ${src.riskfree}. Growth ${src.growth}. Leases are in reported debt; employee options are not valued (no public data). ` +
@@ -416,7 +416,7 @@
         el('dcfStockHeading').textContent = data.name;
         el('dcfStockSubheading').textContent =
           `${data.symbol} · ${data.currency_code} · Revenue ${data.money_symbol}${fmtNum(data.base_revenue)} ${data.unit} · Debt ${data.money_symbol}${fmtNum(data.debt)} ${data.unit} · Cash ${data.money_symbol}${fmtNum(data.cash)} ${data.unit}`;
-        el('dcfUnitLabel').textContent = `US$ ${data.unit}`;
+        el('dcfUnitLabel').textContent = `${data.money_symbol} ${data.unit}`;
         setScenarioButton('base');
         paint(data);
 
