@@ -57,6 +57,7 @@ def _offline(monkeypatch):
     """No live SEC / IMF calls in tests; individual tests opt in with fixed data."""
     monkeypatch.setattr(md, "_sec_rd_by_year", lambda symbol, currency: {})
     monkeypatch.setattr(md, "_imf_inflation", lambda: None)
+    monkeypatch.setattr(md, "_fast_info", lambda symbol: {})
 
 
 def _inputs(monkeypatch, info=None, symbol="TEST", **provider_kwargs):
@@ -287,3 +288,73 @@ def test_fiscal_years_line_up_with_sec_frames():
     assert md._fiscal_year("2026-01-25") == 2025  # NVDA's fiscal 2026 = SEC frame CY2025
     assert md._fiscal_year("2025-09-27") == 2025  # Apple
     assert md._fiscal_year("2026-03-31") == 2025  # Indian fiscal year
+
+
+# ── Sparse company profile (what Yahoo returns to cloud hosts such as Vercel / CI) ──
+
+SPARSE_BALANCE = pd.DataFrame(
+    {
+        "2026": {
+            "Ordinary Shares Number": 100e6,
+            "Total Debt": 200e6,
+            "Cash And Cash Equivalents": 50e6,
+        }
+    }
+)
+SPARSE_INCOME = pd.DataFrame(
+    {
+        "2026": {"Total Revenue": 1_100e6, "Operating Income": 220e6},
+        "2025": {"Total Revenue": 1_000e6, "Operating Income": 200e6},
+    }
+)
+
+
+def _sparse(monkeypatch, symbol="TEST.NS", income=SPARSE_INCOME, fx=None, **kw):
+    provider = FakeProvider(
+        {}, fx=fx or {"INRUSD=X": 0.0105}, balance_sheet=SPARSE_BALANCE, income=income, **kw
+    )
+    monkeypatch.setattr(md, "get_provider", lambda: provider)
+    monkeypatch.setattr(md, "resolve_ticker_symbol", lambda s: (symbol, 50.0))
+    return md.dcf_inputs(symbol)
+
+
+def test_sparse_profile_falls_back_to_statements_and_exchange_suffix(monkeypatch):
+    """Empty profile: currency from the .NS suffix, shares/debt/cash/margin from statements."""
+    i = _sparse(monkeypatch)
+    assert "error" not in i
+    assert i["currency_code"] == "INR" and i["financial_currency"] == "INR"
+    assert i["shares"] == pytest.approx(100.0)  # Ordinary Shares Number, millions
+    assert i["debt"] == pytest.approx(200e6 * 0.0105 / 1e6)
+    assert i["cash"] == pytest.approx(50e6 * 0.0105 / 1e6)
+    assert i["margin"] == pytest.approx(0.20)  # operating income, not the EBIT line
+
+
+def test_sparse_profile_detects_usd_statements(monkeypatch):
+    """Infosys-style: INR listing, USD statements. Rupee reading would be ~95x off."""
+    usd_income = SPARSE_INCOME / 95  # same business, reported in USD
+    i = _sparse(monkeypatch, income=usd_income, fx={"INRUSD=X": 1 / 95})
+    assert i["financial_currency"] == "USD"
+    assert "inferred" in i["sources"]["financial_currency"]
+    assert any("Statement currency was inferred" in w for w in i["data_warnings"])
+
+
+def test_sparse_profile_with_unknown_suffix_currency_is_refused(monkeypatch):
+    i = _sparse(monkeypatch, symbol="TEST.XX")
+    assert "error" in i and "currency" in i["error"]
+
+
+def test_placeholder_inputs_are_flagged(monkeypatch):
+    """New listing: no beta, one quarter of growth, unclassified -> explicit warnings."""
+    i = _inputs(monkeypatch, info={"beta": None})
+    text = " ".join(i["data_warnings"])
+    assert "Beta is unavailable" in text
+    assert "single quarter" in text
+    assert "Sales-to-capital is a generic 1.5" in text  # no balance sheet, not classified
+
+
+def test_complete_data_has_no_warnings(monkeypatch):
+    income = pd.DataFrame(
+        {"2025": {"Total Revenue": 1_050_000_000}, "2024": {"Total Revenue": 1_000_000_000}}
+    )
+    i = _inputs(monkeypatch, symbol="AAPL", income=income)
+    assert i["data_warnings"] == []
