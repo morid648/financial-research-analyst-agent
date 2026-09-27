@@ -5,7 +5,9 @@ Market data tools for fetching financial data from various sources.
 """
 
 import json
+import re
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from src.data import get_provider
@@ -396,22 +398,251 @@ def get_financial_statements(symbol: str) -> Dict[str, Any]:
         return {"symbol": symbol, "error": str(e)}
 
 
-def get_company_dcf_profile(
-    symbol: str,
-    growth: Optional[float] = None,
-    margin: Optional[float] = None,
-    beta: Optional[float] = None,
-    terminal_g: Optional[float] = None,
-    rf: Optional[float] = None,
-    erp: Optional[float] = None,
-    tax_rate: Optional[float] = None,
-) -> Dict[str, Any]:
-    """
-    Compute live interactive DCF valuation model with 5-year waterfall,
-    WACC decomposition, Enterprise-to-Equity bridge, and 2D Sensitivity matrix.
-    """
-    import math
+def _beta_vs_index(provider, symbol: str, index: str) -> Optional[float]:
+    """Beta of `symbol` against `index` from two years of weekly returns.
 
+    Returns None when there isn't at least a year of overlapping weeks, so callers
+    fall back to the provider's own beta rather than trusting a thin regression.
+    """
+    try:
+        import pandas as pd
+
+        stock = provider.get_history(symbol, period="2y", interval="1wk")["Close"]
+        market = provider.get_history(index, period="2y", interval="1wk")["Close"]
+        rets = pd.concat([stock.pct_change(), market.pct_change()], axis=1, join="inner").dropna()
+        if len(rets) < 52:
+            return None
+        var = rets.iloc[:, 1].var()
+        return float(rets.iloc[:, 0].cov(rets.iloc[:, 1]) / var) if var > 0 else None
+    except Exception:
+        return None
+
+
+_DAMODARAN = None
+_INDUSTRY_INDEX = None
+_CONFIG = Path(__file__).resolve().parents[2] / "config"
+
+
+def _damodaran() -> Dict[str, Any]:
+    """Damodaran's country, industry and synthetic-rating data (config/damodaran.json)."""
+    global _DAMODARAN
+    if _DAMODARAN is None:
+        _DAMODARAN = json.loads((_CONFIG / "damodaran.json").read_text(encoding="utf-8"))
+    return _DAMODARAN
+
+
+def _norm_name(name: str) -> str:
+    """'Taiwan Semiconductor Manufacturing Company Limited (TWSE:2330)' -> match key."""
+    return re.sub(r"[^a-z0-9]+", " ", re.sub(r"\s*\([^)]*\)\s*$", "", name).lower()).strip()
+
+
+def _industry_of(symbol: str, name: Optional[str] = None) -> Optional[str]:
+    """Damodaran's industry for a Yahoo symbol, from his company classification (indname).
+
+    ADRs (e.g. TSM) are listed under their home ticker (TWSE:2330), so an unmatched
+    symbol falls back to the company name against his non-US listings.
+    """
+    global _INDUSTRY_INDEX
+    if _INDUSTRY_INDEX is None:
+        import gzip
+
+        with gzip.open(
+            _CONFIG / "damodaran_industry_by_ticker.json.gz", "rt", encoding="utf-8"
+        ) as fh:
+            _INDUSTRY_INDEX = json.load(fh)
+    i = _INDUSTRY_INDEX["by_ticker"].get(symbol)
+    if i is None and name:
+        i = _INDUSTRY_INDEX["by_name"].get(_norm_name(name))
+    return None if i is None else _INDUSTRY_INDEX["industries"][i]
+
+
+US_RISKFREE_FALLBACK = 0.0458  # workbook's Feb 2026 value, used if ^TNX is unavailable
+_SUBUNITS = {"GBp": ("GBP", 0.01), "ILA": ("ILS", 0.01), "ZAc": ("ZAR", 0.01)}  # quoted in cents
+_SYMBOLS = {
+    "USD": "$",
+    "INR": "₹",
+    "EUR": "€",
+    "GBP": "£",
+    "GBp": "GBp ",
+    "JPY": "¥",
+    "CNY": "¥",
+    "HKD": "HK$",
+    "TWD": "NT$",
+    "KRW": "₩",
+    "CAD": "C$",
+    "AUD": "A$",
+}
+# Local market index for regression betas: Yahoo's own beta for non-US listings is not
+# measured against the home market (e.g. Reliance 0.15 vs ~1.1 against the Nifty 50).
+_LOCAL_INDEX = {
+    ".NS": "^NSEI",
+    ".BO": "^BSESN",
+    ".T": "^N225",
+    ".HK": "^HSI",
+    ".L": "^FTSE",
+    ".DE": "^GDAXI",
+    ".PA": "^FCHI",
+    ".TO": "^GSPTSE",
+    ".AX": "^AXJO",
+    ".TW": "^TWII",
+    ".KS": "^KS11",
+    ".SS": "000001.SS",
+    ".SZ": "399001.SZ",
+}
+_COUNTRY_ALIASES = {"South Korea": "Korea"}
+
+
+def _usd_per(provider, code: str) -> Optional[float]:
+    """USD value of one unit of `code` at the spot rate (handles pence-quoted listings)."""
+    base, mult = _SUBUNITS.get(code, (code, 1.0))
+    if base == "USD":
+        return mult
+    rate = (provider.get_info(f"{base}USD=X") or {}).get("regularMarketPrice")
+    return float(rate) * mult if rate else None
+
+
+def _fx_drift(provider, code: str) -> Optional[float]:
+    """Annualized change in USD per unit of `code` over ~5 years (0 for USD).
+
+    Used as the inflation differential (purchasing-power parity) that converts local
+    nominal growth into USD growth — smoother than any single year's currency swing.
+    """
+    if _SUBUNITS.get(code, (code,))[0] == "USD":
+        return 0.0
+    try:
+        hist = provider.get_history(f"{code}USD=X", period="5y", interval="1mo")["Close"].dropna()
+        years = (hist.index[-1] - hist.index[0]).days / 365.25
+        return float((hist.iloc[-1] / hist.iloc[0]) ** (1 / years) - 1) if years >= 1 else None
+    except Exception:
+        return None
+
+
+# Same User-Agent as src/rag/ingester.py (SEC requires one). Not imported from there
+# because that module loads ChromaDB, which the slim Vercel install doesn't have.
+SEC_HEADERS = {"User-Agent": "FinancialResearchAgent/1.0 (research@example.com)"}
+_SEC_CIKS: Optional[Dict[str, int]] = None
+
+
+def _fiscal_year(date) -> int:
+    """Fiscal-year label that lines up with SEC XBRL frames (NVDA's Jan-2026 year = 2025)."""
+    import pandas as pd
+
+    return (pd.Timestamp(date) - pd.Timedelta(days=182)).year
+
+
+def _sec_rd_by_year(symbol: str, currency: str) -> Dict[int, float]:
+    """Annual R&D by fiscal year from SEC XBRL (10-K and 20-F filers, incl. ADRs like TSM).
+
+    yfinance only carries ~4 years; EDGAR has 10-20, enough for Damodaran's full
+    amortizable life. Empty on any failure (non-SEC filer, network, other currency).
+    """
+    global _SEC_CIKS
+    if "." in symbol:  # SEC filers trade on US exchanges; suffixed symbols are local listings
+        return {}
+    try:
+        import httpx
+
+        if _SEC_CIKS is None:
+            r = httpx.get(
+                "https://www.sec.gov/files/company_tickers.json", headers=SEC_HEADERS, timeout=10
+            )
+            _SEC_CIKS = {v["ticker"].upper(): int(v["cik_str"]) for v in r.json().values()}
+        cik = _SEC_CIKS.get(symbol.upper())
+        if not cik:
+            return {}
+        for taxonomy in ("us-gaap", "ifrs-full"):
+            r = httpx.get(
+                f"https://data.sec.gov/api/xbrl/companyconcept/CIK{cik:010d}/{taxonomy}/"
+                "ResearchAndDevelopmentExpense.json",
+                headers=SEC_HEADERS,
+                timeout=10,
+            )
+            if r.status_code == 200:
+                return {
+                    int(x["frame"][2:]): float(x["val"])
+                    for x in r.json()["units"].get(currency, [])
+                    if x.get("fp") == "FY"
+                    and x.get("form") in ("10-K", "20-F")
+                    and len(x.get("frame", "")) == 6
+                }
+    except Exception:
+        pass
+    return {}
+
+
+# ISO3 codes for IMF data, keyed by statement currency.
+_CURRENCY_COUNTRY = {
+    "USD": "USA",
+    "INR": "IND",
+    "JPY": "JPN",
+    "CNY": "CHN",
+    "HKD": "HKG",
+    "TWD": "TWN",
+    "EUR": "EURO",
+    "GBP": "GBR",
+    "KRW": "KOR",
+    "CAD": "CAN",
+    "AUD": "AUS",
+    "CHF": "CHE",
+    "SEK": "SWE",
+    "NOK": "NOR",
+    "DKK": "DNK",
+    "SAR": "SAU",
+    "ILS": "ISR",
+    "ZAR": "ZAF",
+    "BRL": "BRA",
+    "MXN": "MEX",
+    "SGD": "SGP",
+    "IDR": "IDN",
+    "THB": "THA",
+    "TRY": "TUR",
+    "PLN": "POL",
+    "MYR": "MYS",
+}
+_IMF_INFLATION: Optional[Dict[str, float]] = None
+
+
+def _imf_inflation() -> Optional[Dict[str, float]]:
+    """IMF WEO CPI inflation forecasts: {ISO3: average % over the next five years}."""
+    global _IMF_INFLATION
+    if _IMF_INFLATION is None:
+        try:
+            import httpx
+
+            r = httpx.get("https://www.imf.org/external/datamapper/api/v1/PCPIPCH", timeout=15)
+            this_year = datetime.now().year
+            _IMF_INFLATION = {
+                iso: sum(v[str(y)] for y in range(this_year, this_year + 5)) / 500
+                for iso, v in r.json()["values"]["PCPIPCH"].items()
+                if all(str(y) in v for y in range(this_year, this_year + 5))
+            }
+        except Exception:
+            return None
+    return _IMF_INFLATION
+
+
+def _inflation_differential(code: str) -> Optional[tuple]:
+    """(USD-vs-local adjustment, local inflation, US inflation) from IMF forecasts.
+
+    Damodaran: g_USD = (1 + g_local) × (1 + inflation_US) / (1 + inflation_local) − 1.
+    """
+    base = _SUBUNITS.get(code, (code,))[0]
+    if base == "USD":
+        return 0.0, None, None
+    infl, iso = _imf_inflation(), _CURRENCY_COUNTRY.get(base)
+    if not infl or iso not in infl or "USA" not in infl:
+        return None
+    return (1 + infl["USA"]) / (1 + infl[iso]) - 1, infl[iso], infl["USA"]
+
+
+def dcf_inputs(symbol: str) -> Dict[str, Any]:
+    """Gather everything Damodaran's FCFF model needs for a live ticker.
+
+    Valued in US dollars (Damodaran's approach when a local-currency riskfree rate isn't
+    available: USD riskfree, the company's country ERP, then convert value per share at
+    spot). Returns plain JSON — rates as decimals, money in USD millions, shares in
+    millions — so the page can post it to /api/v1/dcf/compute and re-value instantly.
+    """
     resolved_sym, verified_price = resolve_ticker_symbol(symbol)
     if not resolved_sym or verified_price is None or verified_price <= 0:
         return {
@@ -424,377 +655,419 @@ def get_company_dcf_profile(
 
     provider = get_provider()
     info = provider.get_info(resolved_sym) or {}
-    cmp_price = verified_price or info.get("currentPrice") or info.get("regularMarketPrice") or 0.0
+    cmp_price = float(
+        verified_price or info.get("currentPrice") or info.get("regularMarketPrice") or 0
+    )
+    curr_code = info.get("currency") or "USD"
+    fin_code = info.get("financialCurrency") or curr_code
+    usd_per_listing, usd_per_fin = _usd_per(provider, curr_code), _usd_per(provider, fin_code)
+    if not usd_per_listing or not usd_per_fin:
+        return {
+            "error": (
+                f"No exchange rate to US dollars is available for {resolved_sym} "
+                f"({curr_code} price, {fin_code} statements), so it can't be valued without "
+                f"mixing currencies."
+            )
+        }
+    to_usd_m = usd_per_fin / 1e6  # statement currency -> USD millions
 
-    curr_code = info.get("currency", "USD")
-    is_inr = curr_code == "INR" or resolved_sym.endswith(".NS") or resolved_sym.endswith(".BO")
-    unit_div = 1e7 if is_inr else 1e6
-    unit = "Cr" if is_inr else "M"
-    currency = "₹" if is_inr else "$"
+    def _statement(fetch):
+        try:
+            df = fetch(resolved_sym)
+            return df if df is not None and not df.empty else None
+        except Exception:
+            return None
 
-    # Revenue
-    raw_rev = float(info.get("totalRevenue") or 0)
+    income = _statement(provider.get_income_statement)
+    balance = _statement(provider.get_balance_sheet)
+
+    def _line(df, keys, idx=0):
+        if df is None:
+            return None
+        for k in keys:
+            if k in df.index:
+                vals = df.loc[k].dropna()
+                if len(vals) > idx:
+                    return float(vals.iloc[idx])
+        return None
+
+    raw_rev = float(info.get("totalRevenue") or 0) or (
+        _line(income, ["Total Revenue", "Operating Revenue"]) or 0.0
+    )
     if raw_rev <= 0:
-        try:
-            fin = provider.get_income_statement(resolved_sym)
-            if fin is not None and not fin.empty:
-                for rev_key in ["Total Revenue", "Operating Revenue", "Gross Revenue"]:
-                    if rev_key in fin.index:
-                        series = fin.loc[rev_key].dropna()
-                        if not series.empty and float(series.iloc[0]) > 0:
-                            raw_rev = float(series.iloc[0])
-                            break
-        except Exception:
-            pass
-
-    # If raw_rev is still <= 0, do not fabricate numbers with marketCap * 0.4.
-    base_rev = (raw_rev / unit_div) if raw_rev > 0 else 0.0
-
-    # Shares
-    raw_shares = float(info.get("sharesOutstanding") or 0)
-    if raw_shares <= 0 and cmp_price > 0:
-        raw_shares = float(info.get("marketCap") or 0) / cmp_price
+        return {
+            "error": f"{resolved_sym} has no reported revenue, so an operating DCF isn't meaningful."
+        }
+    raw_shares = float(info.get("sharesOutstanding") or 0) or (
+        float(info.get("marketCap") or 0) / cmp_price
+    )
     if raw_shares <= 0:
-        raw_shares = 100 * unit_div
-    shares = max(0.1, raw_shares / unit_div)
-
-    # Debt & Cash
-    debt = max(0.0, float(info.get("totalDebt") or 0) / unit_div)
-    cash = max(0.0, float(info.get("totalCash") or 0) / unit_div)
-
-    # Parameters (use overrides if provided, else company figures).
-    # Track *where* each assumption came from — the financial-analyst rule "state your
-    # assumptions before your conclusions" only means something if a reader can tell a
-    # company-reported figure apart from a generic fallback guess.
-    growth_source = (
-        "override"
-        if growth is not None
-        else ("company-reported" if info.get("revenueGrowth") else "sector-default")
-    )
-    def_growth = float(info.get("revenueGrowth") or 0.12) * 100
-    param_growth = float(growth if growth is not None else max(2.0, min(50.0, def_growth)))
-
-    margin_source = (
-        "override"
-        if margin is not None
-        else ("company-reported" if info.get("operatingMargins") else "sector-default")
-    )
-    def_margin = float(info.get("operatingMargins") or 0.15) * 100
-    param_margin = float(margin if margin is not None else max(2.0, min(70.0, def_margin)))
-
-    def_beta = float(info.get("beta") or 1.1)
-    param_beta = float(beta if beta is not None else max(0.4, min(3.0, def_beta)))
-
-    def_term_g = 4.5 if is_inr else 2.5
-    param_term_g = float(terminal_g if terminal_g is not None else def_term_g)
-
-    def_rf = 6.8 if is_inr else 4.2
-    param_rf = float(rf if rf is not None else def_rf)
-
-    def_erp = 5.5 if is_inr else 5.0
-    param_erp = float(erp if erp is not None else def_erp)
-
-    def_tax = 25.0 if is_inr else 21.0
-    param_tax = float(tax_rate if tax_rate is not None else def_tax)
-
-    # D&A / CapEx / NWC as % of revenue: derive from the company's own trailing
-    # actuals when available, falling back to generic defaults otherwise.
-    da_rate, capex_rate, nwc_rate = 3.0, 4.0, 2.0
-    da_rate_source, capex_rate_source, nwc_rate_source = (
-        "generic-default",
-        "generic-default",
-        "generic-default",
-    )
-    if raw_rev > 0:
-        try:
-            cf = provider.get_cash_flow(resolved_sym)
-            if cf is not None and not cf.empty:
-
-                def _pct_of_rev(keys):
-                    for k in keys:
-                        if k in cf.index:
-                            vals = cf.loc[k].dropna()
-                            if not vals.empty:
-                                return abs(float(vals.iloc[0])) / raw_rev * 100
-                    return None
-
-                da_pct = _pct_of_rev(
-                    [
-                        "Depreciation And Amortization",
-                        "Depreciation Amortization Depletion",
-                        "Depreciation",
-                    ]
-                )
-                capex_pct = _pct_of_rev(["Capital Expenditure", "Purchase Of PPE"])
-                nwc_pct = _pct_of_rev(["Change In Working Capital"])
-                if da_pct:
-                    da_rate = max(0.5, min(15.0, da_pct))
-                    da_rate_source = "trailing-actual"
-                if capex_pct:
-                    capex_rate = max(0.5, min(20.0, capex_pct))
-                    capex_rate_source = "trailing-actual"
-                if nwc_pct is not None:
-                    nwc_rate = max(0.0, min(10.0, nwc_pct))
-                    nwc_rate_source = "trailing-actual"
-        except Exception:
-            pass
-
-    # 1. Cost of Capital (WACC)
-    ke = param_rf + (param_beta * param_erp)
-    kd_pre_tax = param_rf + 2.0
-    kd_after_tax = kd_pre_tax * (1 - (param_tax / 100))
-    total_cap = debt + (cmp_price * shares)
-    we = (cmp_price * shares) / total_cap if total_cap > 0 else 0.85
-    wd = 1.0 - we
-    wacc = (we * ke) + (wd * kd_after_tax)
-    wacc_dec = max(0.04, wacc / 100)
-    g_dec = param_term_g / 100
-
-    g_steps = [
-        param_term_g - 1.0,
-        param_term_g - 0.5,
-        param_term_g,
-        param_term_g + 0.5,
-        param_term_g + 1.0,
-    ]
-    wacc_steps = [wacc - 1.5, wacc - 0.75, wacc, wacc + 0.75, wacc + 1.5]
-
-    years = [1, 2, 3, 4, 5]
-
-    def _project(growth_pct: float, margin_pct: float, term_g_pct: float):
-        """Run the 5-year FCF waterfall + terminal value + EV-to-equity bridge for a
-        given growth/margin/terminal-growth trio. Shared by the base case and the
-        bull/bear scenarios below so all three use one, tested code path."""
-        curr_r = base_rev
-        fc = []
-        pv_sum = 0.0
-        for y in years:
-            curr_r = curr_r * (1 + (growth_pct / 100))
-            ebit = curr_r * (margin_pct / 100)
-            tax = ebit * (param_tax / 100)
-            nopat = ebit - tax
-            da = curr_r * (da_rate / 100)
-            capex = curr_r * (capex_rate / 100)
-            nwc = curr_r * (nwc_rate / 100)
-            fcf = nopat + da - capex - nwc
-            discount_factor = 1.0 / math.pow(1.0 + wacc_dec, y)
-            pv_fcf = fcf * discount_factor
-            pv_sum += pv_fcf
-            fc.append(
-                {
-                    "year": y,
-                    "rev": round(curr_r, 2),
-                    "ebit": round(ebit, 2),
-                    "nopat": round(nopat, 2),
-                    "da": round(da, 2),
-                    "capex": round(capex, 2),
-                    "nwc": round(nwc, 2),
-                    "fcf": round(fcf, 2),
-                    "df": round(discount_factor, 4),
-                    "pv": round(pv_fcf, 2),
-                }
-            )
-        fcf_last = fc[-1]["fcf"]
-        g_d = term_g_pct / 100
-        denom = max(0.01, wacc_dec - g_d)
-        tv = (fcf_last * (1 + g_d)) / denom
-        pv_tv = tv / math.pow(1.0 + wacc_dec, 5)
-        ev = pv_sum + pv_tv
-        eq = ev - debt + cash
-        fv = max(0.0, eq / shares) if shares > 0 else 0.0
-        return fc, pv_sum, tv, pv_tv, ev, eq, fv
-
-    if base_rev <= 0:
-        # Zero-revenue company (shell, pre-revenue, or non-operational)
-        forecast = []
-        for y in years:
-            discount_factor = 1.0 / math.pow(1.0 + wacc_dec, y)
-            forecast.append(
-                {
-                    "year": y,
-                    "rev": 0.0,
-                    "ebit": 0.0,
-                    "nopat": 0.0,
-                    "da": 0.0,
-                    "capex": 0.0,
-                    "nwc": 0.0,
-                    "fcf": 0.0,
-                    "df": round(discount_factor, 4),
-                    "pv": 0.0,
-                }
-            )
-        total_pv_fcf = 0.0
-        terminal_value = 0.0
-        pv_terminal_value = 0.0
-        enterprise_value = 0.0
-        equity_value = cash - debt
-        fair_value = max(0.0, equity_value / shares) if shares > 0 else 0.0
-        gap_pct = ((fair_value - cmp_price) / cmp_price * 100) if cmp_price > 0 else -100.0
-        verdict = (
-            "Distressed / Insolvent (No Active Operations)"
-            if equity_value <= 0
-            else "Pre-Revenue (Net Asset Backing)"
-        )
-        matrix = [[round(fair_value, 2)] * 5 for _ in range(5)]
-        # No active operations to flex a bull/bear case around — all three collapse
-        # to the same net-asset-backing figure.
-        scenarios = {
-            "bull": {
-                "growth": 0.0,
-                "margin": 0.0,
-                "fair_value_per_share": round(fair_value, 2),
-                "upside_pct": round(gap_pct, 1),
-            },
-            "base": {
-                "growth": 0.0,
-                "margin": 0.0,
-                "fair_value_per_share": round(fair_value, 2),
-                "upside_pct": round(gap_pct, 1),
-            },
-            "bear": {
-                "growth": 0.0,
-                "margin": 0.0,
-                "fair_value_per_share": round(fair_value, 2),
-                "upside_pct": round(gap_pct, 1),
-            },
+        return {
+            "error": f"Share count for {resolved_sym} is unavailable, so a per-share DCF can't be computed."
         }
-        probability_weighted_fair_value = round(fair_value, 2)
+
+    sources: Dict[str, str] = {}
+    dam = _damodaran()
+    industry = _industry_of(resolved_sym, info.get("longName") or info.get("shortName"))
+    ind_data = dam["industries"].get(industry) if industry else None
+
+    op_margin = info.get("operatingMargins")
+    if op_margin is None:
+        ebit_stmt = _line(income, ["EBIT", "Operating Income"])
+        op_margin = ebit_stmt / raw_rev if ebit_stmt is not None else 0.10
+        sources["margin"] = "statement" if ebit_stmt is not None else "default"
     else:
-        # 2-4. Base case: 5-year FCF waterfall, terminal value, EV-to-equity bridge
-        (
-            forecast,
-            total_pv_fcf,
-            terminal_value,
-            pv_terminal_value,
-            enterprise_value,
-            equity_value,
-            fair_value,
-        ) = _project(param_growth, param_margin, param_term_g)
-        fcf5 = forecast[-1]["fcf"]
-        gap_pct = ((fair_value - cmp_price) / cmp_price * 100) if cmp_price > 0 else 0.0
-        verdict = "Undervalued (Upside)" if gap_pct >= 0 else "Overvalued (Caution)"
+        sources["margin"] = "company-reported"
+    ebit_reported = float(op_margin) * raw_rev
 
-        # 5. Sensitivity Matrix (5x5) — WACC vs terminal growth, base-case operating assumptions
-        matrix = []
-        for w in wacc_steps:
-            row = []
-            w_dec = max(0.03, w / 100)
-            for g in g_steps:
-                g_d = g / 100
-                denom_s = max(0.01, w_dec - g_d)
-                pv_f = sum(f["fcf"] / math.pow(1 + w_dec, f["year"]) for f in forecast)
-                tv_s = (fcf5 * (1 + g_d)) / denom_s
-                pv_tv_s = tv_s / math.pow(1 + w_dec, 5)
-                ev_s = pv_f + pv_tv_s
-                eq_s = ev_s - debt + cash
-                fv_s = max(0.0, eq_s / shares) if shares > 0 else 0.0
-                row.append(round(fv_s, 2))
-            matrix.append(row)
+    # R&D as a capital expense (Damodaran's R&D converter): add back this year's R&D,
+    # deduct amortization of past R&D, and add the research asset to invested capital.
+    # History: SEC XBRL (10-20 years) merged with yfinance (latest ~4) by fiscal year.
+    rd_adjustment = research_asset = 0.0
+    rd_by_year = _sec_rd_by_year(resolved_sym, fin_code)
+    from_sec = bool(rd_by_year)
+    if income is not None and "Research And Development" in income.index:
+        for date, val in income.loc["Research And Development"].dropna().items():
+            rd_by_year[_fiscal_year(date)] = float(val)
+    years = sorted(rd_by_year, reverse=True)
+    rd = []  # newest first; stop at the first missing year or non-positive value
+    for i, year in enumerate(years):
+        if (i and year != years[i - 1] - 1) or rd_by_year[year] <= 0:
+            break
+        rd.append(rd_by_year[year])
+    if len(rd) >= 2:
+        from src.tools.ginzu import capitalize_rd
 
-        # 6. Bull / Base / Bear scenario table (financial-analyst rule: never present a
-        # single-point forecast; investment-researcher rule: quantify the downside).
-        # Growth and margin — the two operational levers a reader can actually reason
-        # about — are flexed; WACC and the discount mechanics stay fixed so the three
-        # cases are comparable apples-to-apples.
-        bull_growth = min(60.0, param_growth * 1.3 + 2.0)
-        bull_margin = min(75.0, param_margin + 3.0)
-        bull_term_g = min(param_term_g + 0.5, wacc - 1.0) if wacc > 1.0 else param_term_g
-        _, _, _, _, _, _, bull_fv = _project(bull_growth, bull_margin, bull_term_g)
-
-        bear_growth = max(0.0, param_growth * 0.5 - 2.0)
-        bear_margin = max(1.0, param_margin - 3.0)
-        bear_term_g = max(0.0, param_term_g - 0.5)
-        _, _, _, _, _, _, bear_fv = _project(bear_growth, bear_margin, bear_term_g)
-
-        scenarios = {
-            "bull": {
-                "growth": round(bull_growth, 1),
-                "margin": round(bull_margin, 1),
-                "terminal_g": round(bull_term_g, 2),
-                "fair_value_per_share": round(bull_fv, 2),
-                "weight": 0.25,
-                "upside_pct": round(
-                    ((bull_fv - cmp_price) / cmp_price * 100) if cmp_price > 0 else 0.0, 1
-                ),
-            },
-            "base": {
-                "growth": round(param_growth, 1),
-                "margin": round(param_margin, 1),
-                "terminal_g": round(param_term_g, 2),
-                "fair_value_per_share": round(fair_value, 2),
-                "weight": 0.50,
-                "upside_pct": round(gap_pct, 1),
-            },
-            "bear": {
-                "growth": round(bear_growth, 1),
-                "margin": round(bear_margin, 1),
-                "terminal_g": round(bear_term_g, 2),
-                "fair_value_per_share": round(bear_fv, 2),
-                "weight": 0.25,
-                "upside_pct": round(
-                    ((bear_fv - cmp_price) / cmp_price * 100) if cmp_price > 0 else 0.0, 1
-                ),
-            },
-        }
-        probability_weighted_fair_value = round(
-            0.25 * bull_fv + 0.50 * fair_value + 0.25 * bear_fv, 2
+        wanted = int((ind_data or {}).get("rd_life") or 3)
+        life = min(wanted, len(rd) - 1)
+        cap = capitalize_rd(rd[0], rd[1:], life)
+        rd_adjustment, research_asset = cap["ebit_adjustment"], cap["research_asset"]
+        sources["rd"] = f"capitalized, {life}-year life" + (
+            f" ({'SEC filings' if from_sec else 'Yahoo'}; industry life {wanted})"
+            if life < wanted
+            else (" (SEC filings)" if from_sec else "")
         )
+    ebit = ebit_reported + rd_adjustment
 
-    company_name = info.get("longName") or info.get("shortName") or resolved_sym
+    # Growth: last fiscal year's revenue growth, converted to USD terms with the
+    # expected inflation differential (IMF WEO forecasts), so local inflation doesn't
+    # leak into a USD valuation. Offline fallback: the currency's 5-year drift vs USD.
+    rev_now = _line(income, ["Total Revenue", "Operating Revenue"], 0)
+    rev_prev = _line(income, ["Total Revenue", "Operating Revenue"], 1)
+    if rev_now and rev_prev and rev_prev > 0:
+        growth, sources["growth"] = rev_now / rev_prev - 1, "trailing-annual"
+    elif info.get("revenueGrowth") is not None:
+        growth, sources["growth"] = float(info["revenueGrowth"]), "latest-quarter-yoy"
+    else:
+        growth, sources["growth"] = 0.05, "default"
+    diff = _inflation_differential(fin_code)
+    if diff is not None:
+        if diff[0]:
+            growth = (1 + growth) * (1 + diff[0]) - 1
+            sources[
+                "growth"
+            ] += f" (USD-adjusted: IMF inflation {fin_code} {diff[1]:.1%} vs USD {diff[2]:.1%})"
+    else:
+        drift = _fx_drift(provider, fin_code)
+        if drift is None:
+            sources["growth"] += " (local currency; no inflation or FX data)"
+        elif drift:
+            growth = (1 + growth) * (1 + drift) - 1
+            sources["growth"] += f" (USD-adjusted by {fin_code} 5y drift {drift:+.1%}/yr)"
+    growth = max(0.0, min(0.30, growth))
+
+    revenue = raw_rev * to_usd_m
+    debt = max(
+        0.0, float(info.get("totalDebt") or 0) * to_usd_m
+    )  # includes lease liabilities (IFRS 16 / ASC 842)
+    cash = max(0.0, float(info.get("totalCash") or 0) * to_usd_m)
+    minority = max(0.0, (_line(balance, ["Minority Interest"]) or 0.0) * to_usd_m)
+    book_equity = (_line(balance, ["Stockholders Equity", "Common Stock Equity"]) or 0.0) * to_usd_m
+    interest = (
+        abs(_line(income, ["Interest Expense", "Interest Expense Non Operating"]) or 0.0) * to_usd_m
+    )
+    # Cross-holdings and long-term investments: valued separately, added to equity.
+    non_operating = max(
+        0.0,
+        (_line(balance, ["Investments And Advances", "Long Term Equity Investment"]) or 0.0)
+        * to_usd_m,
+    )
+
+    # Reinvestment lever: Damodaran's default is the industry's sales-to-capital ratio;
+    # fall back to the company's own (invested capital incl. the research asset).
+    invested = book_equity + debt - cash + research_asset * to_usd_m
+    if ind_data:
+        s2c, sources["sales_to_capital"] = ind_data["sales_to_capital"], "industry"
+    elif invested > 0:
+        s2c, sources["sales_to_capital"] = max(0.3, min(5.0, revenue / invested)), "company"
+    else:
+        s2c, sources["sales_to_capital"] = 1.5, "default"
+
+    country_name = _COUNTRY_ALIASES.get(info.get("country"), info.get("country")) or (
+        "India" if resolved_sym.endswith((".NS", ".BO")) else "United States"
+    )
+    country = dam["countries"].get(country_name) or dam["countries"]["United States"]
+    sources["country"] = (
+        country_name if country_name in dam["countries"] else "United States (fallback)"
+    )
+
+    pretax, tax_paid = _line(income, ["Pretax Income"]), _line(income, ["Tax Provision"])
+    marginal_tax = country["marginal_tax"]
+    effective_tax = (
+        max(0.0, min(marginal_tax, tax_paid / pretax))
+        if pretax and pretax > 0 and tax_paid is not None
+        else marginal_tax
+    )
+
+    tnx = (provider.get_info("^TNX") or {}).get("regularMarketPrice")
+    riskfree = float(tnx) / 100 if tnx else US_RISKFREE_FALLBACK
+    sources["riskfree"] = "US 10y Treasury" if tnx else "fallback"
+
+    beta, sources["beta"] = float(info.get("beta") or 1.0), "yfinance"
+    for suffix, index in _LOCAL_INDEX.items():
+        if resolved_sym.endswith(suffix):
+            local = _beta_vs_index(provider, resolved_sym, index)
+            if local is not None:
+                beta, sources["beta"] = local, f"vs {index}"
+            break
+    beta = max(0.4, min(3.0, beta))
+    sources["industry"] = industry or "not classified"
 
     return {
         "symbol": resolved_sym,
-        "name": company_name,
-        "currency": currency,
+        "name": info.get("longName") or info.get("shortName") or resolved_sym,
+        "currency": _SYMBOLS.get(curr_code, curr_code + " "),
         "currency_code": curr_code,
-        "currencyCode": curr_code,
-        "unit": unit,
+        "financial_currency": fin_code,
+        "usd_per_listing_unit": usd_per_listing,
+        "usd_per_financial_unit": usd_per_fin,
+        "cmp": cmp_price,
+        "market_cap_usd": cmp_price * usd_per_listing * raw_shares,
+        "revenue": revenue,
+        "ebit": ebit * to_usd_m,
+        "ebit_reported": ebit_reported * to_usd_m,
+        "rd_adjustment": rd_adjustment * to_usd_m,
+        "research_asset": research_asset * to_usd_m,
+        "margin": ebit / raw_rev,
+        "growth": growth,
+        "sales_to_capital": s2c,
+        "industry": industry,
+        "effective_tax": effective_tax,
+        "marginal_tax": marginal_tax,
+        "riskfree": riskfree,
+        "beta": beta,
+        "erp": country["erp"],
+        "mature_erp": dam["mature_market_erp"],
+        "country_default_spread": country["default_spread"],
+        "interest_expense": interest,
+        "debt": debt,
+        "cash": cash,
+        "minority": minority,
+        "non_operating_assets": non_operating,
+        "book_equity": book_equity,
+        "shares": raw_shares / 1e6,
+        "sources": sources,
+    }
+
+
+def _synthetic_spread(coverage: float, large_firm: bool) -> tuple:
+    table = _damodaran()["synthetic_rating"]["large_firm" if large_firm else "small_firm"]
+    for upper, rating, spread in table:
+        if coverage <= upper:
+            return rating, spread
+    return table[-1][1], table[-1][2]
+
+
+def dcf_valuation(
+    inputs: Dict[str, Any], overrides: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Run Damodaran's FCFF model (src/tools/ginzu.py) on dcf_inputs() output.
+
+    overrides (percent units, as the page's sliders): growth, margin, beta, terminal_g,
+    rf, erp, tax_rate. Unset → the company-derived defaults.
+    """
+    from src.tools.ginzu import cost_of_capital, value_fcff
+
+    o = {k: v for k, v in (overrides or {}).items() if v is not None}
+    pct = lambda k, default: o[k] / 100 if k in o else default  # noqa: E731
+    growth = pct("growth", inputs["growth"])
+    margin = pct("margin", inputs["margin"])
+    riskfree = pct("rf", inputs["riskfree"])
+    erp = pct("erp", inputs["erp"])
+    marginal_tax = pct("tax_rate", inputs["marginal_tax"])
+    beta = float(o.get("beta", inputs["beta"]))
+    perpetual_g = pct("terminal_g", None)  # None → Damodaran default: g = riskfree
+
+    revenue = inputs["revenue"]
+    ebit = inputs["ebit"]  # R&D-adjusted
+    # Synthetic rating uses reported operating income, as in Damodaran's rating sheet.
+    reported = inputs["ebit_reported"]
+    coverage = reported / inputs["interest_expense"] if inputs["interest_expense"] > 0 else 1e6
+    rating, spread = _synthetic_spread(
+        coverage if reported > 0 else -1e5, inputs["market_cap_usd"] > 5e9
+    )
+    kd = riskfree + spread + inputs["country_default_spread"]
+
+    def run(initial_wacc_delta=0.0, g=perpetual_g, grow=growth, target=margin):
+        coc = cost_of_capital(
+            riskfree=riskfree,
+            beta=beta,
+            erp=erp,
+            pretax_cost_of_debt=kd,
+            marginal_tax=marginal_tax,
+            market_equity=inputs["market_cap_usd"] / 1e6,
+            book_debt=inputs["debt"],
+            interest_expense=inputs["interest_expense"],
+        )
+        v = value_fcff(
+            revenue=revenue,
+            ebit=ebit,
+            effective_tax=inputs["effective_tax"],
+            marginal_tax=marginal_tax,
+            growth_next_year=grow,
+            growth_years_2_5=grow,
+            margin_next_year=inputs["margin"],
+            target_margin=target,
+            margin_convergence_year=5,
+            sales_to_capital_1_5=inputs["sales_to_capital"],
+            sales_to_capital_6_10=inputs["sales_to_capital"],
+            riskfree=riskfree,
+            initial_cost_of_capital=coc["cost_of_capital"] + initial_wacc_delta,
+            mature_erp=inputs["mature_erp"],
+            stable_cost_of_capital=riskfree + inputs["mature_erp"] + initial_wacc_delta,
+            perpetual_growth=g,
+            debt=inputs["debt"],
+            cash=inputs["cash"],
+            shares=inputs["shares"],
+            minority=inputs["minority"],
+            non_operating_assets=inputs["non_operating_assets"],
+            book_equity=inputs["book_equity"],
+        )
+        return coc, v
+
+    coc, v = run()
+    cmp_price = inputs["cmp"]
+    # Valued in USD; per-share figures go back to the listing currency at spot.
+    to_local = 1.0 / inputs["usd_per_listing_unit"]
+    fv = max(0.0, v["value_per_share"]) * to_local
+    upside = (fv - cmp_price) / cmp_price * 100 if cmp_price > 0 else 0.0
+    if v["equity_value"] <= 0:
+        verdict = "Negative equity value (DCF not meaningful at these assumptions)"
+    else:
+        verdict = "Undervalued (Upside)" if upside >= 0 else "Overvalued (Caution)"
+
+    g_used = v["terminal"]["growth"]
+    wacc_steps = [-0.015, -0.0075, 0.0, 0.0075, 0.015]
+    g_steps = [g_used + d for d in (-0.01, -0.005, 0.0, 0.005, 0.01)]
+    matrix = [
+        [round(max(0.0, run(dw, g)[1]["value_per_share"]) * to_local, 2) for g in g_steps]
+        for dw in wacc_steps
+    ]
+
+    scen = {
+        "bull": (min(0.60, growth * 1.3 + 0.02), min(0.75, margin + 0.03), 0.25),
+        "base": (growth, margin, 0.50),
+        "bear": (max(0.0, growth * 0.5 - 0.02), max(0.01, margin - 0.03), 0.25),
+    }
+    scenarios = {}
+    for name, (gr, mg, w) in scen.items():
+        sv = max(0.0, run(grow=gr, target=mg)[1]["value_per_share"]) * to_local
+        scenarios[name] = {
+            "growth": round(gr * 100, 8),
+            "margin": round(mg * 100, 8),
+            "weight": w,
+            "fair_value_per_share": round(sv, 2),
+            "upside_pct": round((sv - cmp_price) / cmp_price * 100 if cmp_price > 0 else 0.0, 1),
+        }
+
+    wacc_pct = coc["cost_of_capital"] * 100
+    return {
+        "symbol": inputs["symbol"],
+        "name": inputs["name"],
+        "currency": inputs["currency"],
+        "currency_code": inputs["currency_code"],
+        "currencyCode": inputs["currency_code"],
+        "financial_currency": inputs["financial_currency"],
+        "fx_rate": inputs["usd_per_financial_unit"],
+        "valuation_currency": "USD",
+        "money_symbol": "$",
+        "unit": "M",
+        "industry": inputs["industry"],
         "cmp": round(cmp_price, 2),
-        "base_revenue": round(base_rev, 2),
-        # Rounded to 4dp, not the 1-2dp used elsewhere for display: the interactive
-        # DCF page feeds these numbers straight back into its own client-side
-        # recompute engine, so rounding them for display here would silently make
-        # every slider-driven recalculation less precise than the server's own.
-        "growth": round(param_growth, 4),
-        "margin": round(param_margin, 4),
-        "beta": round(param_beta, 4),
-        "terminal_g": round(param_term_g, 4),
-        "rf": round(param_rf, 4),
-        "erp": round(param_erp, 4),
-        "tax_rate": round(param_tax, 1),
-        "da_rate": da_rate,
-        "capex_rate": capex_rate,
-        "nwc_rate": nwc_rate,
-        "debt": round(debt, 2),
-        "cash": round(cash, 2),
-        "shares": round(shares, 2),
-        "wacc": round(wacc, 2),
-        "ke": round(ke, 2),
-        "kd_after_tax": round(kd_after_tax, 2),
-        "we": round(we, 3),
-        "wd": round(wd, 3),
-        "fair_value_per_share": round(fair_value, 2),
-        "upside_pct": round(gap_pct, 1),
+        "model": "Damodaran FCFF (fcffsimpleginzu), 10-year, valued in USD",
+        # Slider values, in percent (4dp so a recompute never drifts from the server).
+        "growth": round(growth * 100, 8),
+        "margin": round(margin * 100, 8),
+        "beta": round(beta, 8),
+        "terminal_g": round(g_used * 100, 8),
+        "rf": round(riskfree * 100, 8),
+        "erp": round(erp * 100, 8),
+        "tax_rate": round(marginal_tax * 100, 2),
+        "effective_tax_rate": round(inputs["effective_tax"] * 100, 2),
+        "sales_to_capital": round(inputs["sales_to_capital"], 3),
+        "synthetic_rating": rating,
+        "wacc": round(wacc_pct, 2),
+        "ke": round(coc["cost_of_equity"] * 100, 2),
+        "kd_after_tax": round(coc["after_tax_cost_of_debt"] * 100, 2),
+        "we": round(coc["equity_weight"], 3),
+        "wd": round(coc["debt_weight"], 3),
+        "stable_wacc": round(v["terminal"]["cost_of_capital"] * 100, 2),
+        "base_revenue": round(revenue, 2),
+        "forecast": [{k: round(x, 6) for k, x in row.items()} for row in v["forecast"]],
+        "terminal": {k: round(x, 6) for k, x in v["terminal"].items()},
+        "total_pv_fcf": round(v["pv_fcff_10y"], 2),
+        "terminal_value": round(v["terminal_value"], 2),
+        "pv_terminal_value": round(v["pv_terminal_value"], 2),
+        "enterprise_value": round(v["operating_assets"], 2),
+        "debt": round(inputs["debt"], 2),
+        "cash": round(inputs["cash"], 2),
+        "minority_interest": round(inputs["minority"], 2),
+        "non_operating_assets": round(inputs["non_operating_assets"], 2),
+        "rd_adjustment": round(inputs["rd_adjustment"], 2),
+        "research_asset": round(inputs["research_asset"], 2),
+        "equity_value": round(v["equity_value"], 2),
+        "shares": round(inputs["shares"], 4),
+        "fair_value_per_share": round(fv, 2),
+        "upside_pct": round(upside, 1),
         "verdict": verdict,
-        "forecast": forecast,
-        "total_pv_fcf": round(total_pv_fcf, 2),
-        "terminal_value": round(terminal_value, 2),
-        "pv_terminal_value": round(pv_terminal_value, 2),
-        "enterprise_value": round(enterprise_value, 2),
-        "equity_value": round(equity_value, 2),
-        "sensitivity_wacc_steps": [round(w, 2) for w in wacc_steps],
-        "sensitivity_g_steps": [round(g, 1) for g in g_steps],
+        "sensitivity_wacc_steps": [round(wacc_pct + d * 100, 2) for d in wacc_steps],
+        "sensitivity_g_steps": [round(g * 100, 2) for g in g_steps],
         "sensitivity_matrix": matrix,
         "scenarios": scenarios,
-        "probability_weighted_fair_value": probability_weighted_fair_value,
-        "assumption_sources": {
-            "growth": growth_source,
-            "margin": margin_source,
-            "da_rate": da_rate_source,
-            "capex_rate": capex_rate_source,
-            "nwc_rate": nwc_rate_source,
-        },
+        "probability_weighted_fair_value": round(
+            sum(s["fair_value_per_share"] * s["weight"] for s in scenarios.values()), 2
+        ),
+        "assumption_sources": inputs["sources"],
+        "inputs": inputs,
     }
+
+
+def get_company_dcf_profile(
+    symbol: str,
+    growth: Optional[float] = None,
+    margin: Optional[float] = None,
+    beta: Optional[float] = None,
+    terminal_g: Optional[float] = None,
+    rf: Optional[float] = None,
+    erp: Optional[float] = None,
+    tax_rate: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Live DCF: Damodaran's FCFF model on this company's data (overrides in percent)."""
+    inputs = dcf_inputs(symbol)
+    if "error" in inputs:
+        return inputs
+    return dcf_valuation(
+        inputs,
+        dict(
+            growth=growth,
+            margin=margin,
+            beta=beta,
+            terminal_g=terminal_g,
+            rf=rf,
+            erp=erp,
+            tax_rate=tax_rate,
+        ),
+    )
 
 
 def get_company_ratios_profile(symbol: str) -> Dict[str, Any]:

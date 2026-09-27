@@ -63,6 +63,7 @@ from src.tools.event_analyzer import analyze_events
 from src.tools.insider_activity import analyze_smart_money
 from src.tools.insight_engine import generate_observations
 from src.tools.market_data import (
+    dcf_valuation,
     get_company_dcf_profile,
     get_company_info,
     get_company_ratios_profile,
@@ -663,6 +664,19 @@ async def get_dcf_model_endpoint(
     except Exception as e:
         logger.error(f"DCF valuation error for {symbol}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/dcf/compute")
+async def compute_dcf(payload: Dict[str, Any]):
+    """
+    Recompute the DCF from the `inputs` block returned by GET /dcf/{symbol}, with
+    slider `overrides` (percent units). Pure math, no market-data fetch, so the
+    interactive page can re-value instantly using the same engine as the API.
+    """
+    try:
+        return dcf_valuation(payload["inputs"], payload.get("overrides"))
+    except (KeyError, TypeError, ValueError, ZeroDivisionError) as e:
+        raise HTTPException(status_code=422, detail=f"Invalid DCF inputs: {e}")
 
 
 @router.get("/ratios/{symbol}")
