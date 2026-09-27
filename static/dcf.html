@@ -66,6 +66,9 @@
         <span id="dcfErrorText"></span>
         <button class="alert-close" type="button" aria-label="Dismiss" onclick="document.getElementById('dcfErrorBanner').style.display='none'">&times;</button>
       </div>
+      <div id="dcfDataWarn" class="alert alert-error" role="status" style="display: none;">
+        <span id="dcfDataWarnText"></span>
+      </div>
       <div id="dcfLoadingBanner" class="alert alert-info" role="status" style="display: none;">
         <span class="spinner" aria-hidden="true"></span>
         <span id="dcfLoadingText">Loading financials…</span>
@@ -350,6 +353,12 @@
         `<tr><th scope="row">${d.sensitivity_wacc_steps[i].toFixed(2)}%</th>` +
         r.map((v, j) => `<td class="${i === 2 && j === 2 ? 'active-cell' : ''}">${curr}${v.toFixed(1)}</td>`).join('') + '</tr>'
       ).join('');
+
+      const warn = d.data_warnings || [];
+      el('dcfDataWarnText').textContent = warn.length
+        ? `Low-confidence valuation — ${warn.length} input${warn.length > 1 ? 's are' : ' is a'} placeholder${warn.length > 1 ? 's' : ''}: ${warn.join(' ')}`
+        : '';
+      el('dcfDataWarn').style.display = warn.length ? 'flex' : 'none';
 
       const src = d.assumption_sources || {};
       el('srcGrowth').textContent = SOURCE_LABEL[src.growth] ? `· ${SOURCE_LABEL[src.growth]}` : '';

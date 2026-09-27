@@ -635,6 +635,48 @@ def _inflation_differential(code: str) -> Optional[tuple]:
     return (1 + infl["USA"]) / (1 + infl[iso]) - 1, infl[iso], infl["USA"]
 
 
+# Listing currency implied by the exchange suffix (fallback when the profile is sparse).
+_SUFFIX_CURRENCY = {
+    ".NS": "INR",
+    ".BO": "INR",
+    ".T": "JPY",
+    ".HK": "HKD",
+    ".L": "GBp",
+    ".DE": "EUR",
+    ".PA": "EUR",
+    ".TO": "CAD",
+    ".AX": "AUD",
+    ".TW": "TWD",
+    ".TWO": "TWD",
+    ".KS": "KRW",
+    ".KQ": "KRW",
+    ".SS": "CNY",
+    ".SZ": "CNY",
+}
+
+
+def _fast_info(symbol: str) -> Dict[str, Any]:
+    """Currency and share count from yfinance's lightweight quote endpoint.
+
+    Yahoo often returns a sparse company profile (no sharesOutstanding, marketCap or
+    currency) to cloud servers such as Vercel and GitHub Actions; fast_info still works
+    there — it is what resolve_ticker_symbol already uses for the price.
+    """
+    out: Dict[str, Any] = {}
+    try:
+        import yfinance as yf
+
+        fi = yf.Ticker(symbol).fast_info
+        for key in ("currency", "shares"):
+            try:
+                out[key] = fi[key]
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return out
+
+
 def dcf_inputs(symbol: str) -> Dict[str, Any]:
     """Gather everything Damodaran's FCFF model needs for a live ticker.
 
@@ -658,18 +700,25 @@ def dcf_inputs(symbol: str) -> Dict[str, Any]:
     cmp_price = float(
         verified_price or info.get("currentPrice") or info.get("regularMarketPrice") or 0
     )
-    curr_code = info.get("currency") or "USD"
-    fin_code = info.get("financialCurrency") or curr_code
-    usd_per_listing, usd_per_fin = _usd_per(provider, curr_code), _usd_per(provider, fin_code)
-    if not usd_per_listing or not usd_per_fin:
+    fast = (
+        {} if info.get("currency") and info.get("sharesOutstanding") else _fast_info(resolved_sym)
+    )
+    suffix_ccy = next(
+        (c for sfx, c in _SUFFIX_CURRENCY.items() if resolved_sym.endswith(sfx)), None
+    )
+    curr_code = info.get("currency") or fast.get("currency") or suffix_ccy
+    if not curr_code and "." not in resolved_sym:
+        curr_code = "USD"  # unsuffixed symbols are US listings
+    if not curr_code:
         return {
-            "error": (
-                f"No exchange rate to US dollars is available for {resolved_sym} "
-                f"({curr_code} price, {fin_code} statements), so it can't be valued without "
-                f"mixing currencies."
-            )
+            "error": f"The trading currency of {resolved_sym} is unavailable, so it can't be valued."
         }
-    to_usd_m = usd_per_fin / 1e6  # statement currency -> USD millions
+    usd_per_listing = _usd_per(provider, curr_code)
+    if not usd_per_listing:
+        return {
+            "error": f"No {curr_code}/USD exchange rate is available for {resolved_sym}, "
+            f"so it can't be valued without mixing currencies."
+        }
 
     def _statement(fetch):
         try:
@@ -698,8 +747,11 @@ def dcf_inputs(symbol: str) -> Dict[str, Any]:
         return {
             "error": f"{resolved_sym} has no reported revenue, so an operating DCF isn't meaningful."
         }
-    raw_shares = float(info.get("sharesOutstanding") or 0) or (
-        float(info.get("marketCap") or 0) / cmp_price
+    raw_shares = (
+        float(info.get("sharesOutstanding") or 0)
+        or float(fast.get("shares") or 0)
+        or (_line(balance, ["Ordinary Shares Number", "Share Issued"]) or 0.0)
+        or float(info.get("marketCap") or 0) / cmp_price
     )
     if raw_shares <= 0:
         return {
@@ -707,13 +759,39 @@ def dcf_inputs(symbol: str) -> Dict[str, Any]:
         }
 
     sources: Dict[str, str] = {}
+    fin_code = info.get("financialCurrency")
+    if not fin_code:
+        # Sparse profile: statements are in the listing currency or in USD (e.g. Infosys,
+        # Wipro report in USD). Keep the candidate whose price-to-sales is plausible; a
+        # wrong currency is off by ~100x. Refuse if that doesn't settle it.
+        mcap_usd = cmp_price * usd_per_listing * raw_shares
+        plausible = []
+        for code in dict.fromkeys([_SUBUNITS.get(curr_code, (curr_code,))[0], "USD"]):
+            rate = _usd_per(provider, code)
+            if rate and 0.05 <= mcap_usd / (raw_rev * rate) <= 50:
+                plausible.append(code)
+        if len(plausible) != 1:
+            return {
+                "error": f"The currency of {resolved_sym}'s financial statements is unavailable "
+                f"and can't be determined reliably, so it can't be valued."
+            }
+        fin_code = plausible[0]
+        sources["financial_currency"] = f"inferred ({fin_code}; profile unavailable)"
+    usd_per_fin = _usd_per(provider, fin_code)
+    if not usd_per_fin:
+        return {
+            "error": f"No {fin_code}/USD exchange rate is available for {resolved_sym}'s statements."
+        }
+    to_usd_m = usd_per_fin / 1e6  # statement currency -> USD millions
     dam = _damodaran()
     industry = _industry_of(resolved_sym, info.get("longName") or info.get("shortName"))
     ind_data = dam["industries"].get(industry) if industry else None
 
     op_margin = info.get("operatingMargins")
     if op_margin is None:
-        ebit_stmt = _line(income, ["EBIT", "Operating Income"])
+        ebit_stmt = _line(
+            income, ["Operating Income", "EBIT"]
+        )  # EBIT line can include other income
         op_margin = ebit_stmt / raw_rev if ebit_stmt is not None else 0.10
         sources["margin"] = "statement" if ebit_stmt is not None else "default"
     else:
@@ -778,9 +856,20 @@ def dcf_inputs(symbol: str) -> Dict[str, Any]:
 
     revenue = raw_rev * to_usd_m
     debt = max(
-        0.0, float(info.get("totalDebt") or 0) * to_usd_m
+        0.0, float(info.get("totalDebt") or _line(balance, ["Total Debt"]) or 0) * to_usd_m
     )  # includes lease liabilities (IFRS 16 / ASC 842)
-    cash = max(0.0, float(info.get("totalCash") or 0) * to_usd_m)
+    cash = max(
+        0.0,
+        float(
+            info.get("totalCash")
+            or _line(
+                balance,
+                ["Cash Cash Equivalents And Short Term Investments", "Cash And Cash Equivalents"],
+            )
+            or 0
+        )
+        * to_usd_m,
+    )
     minority = max(0.0, (_line(balance, ["Minority Interest"]) or 0.0) * to_usd_m)
     book_equity = (_line(balance, ["Stockholders Equity", "Common Stock Equity"]) or 0.0) * to_usd_m
     interest = (
@@ -823,7 +912,9 @@ def dcf_inputs(symbol: str) -> Dict[str, Any]:
     riskfree = float(tnx) / 100 if tnx else US_RISKFREE_FALLBACK
     sources["riskfree"] = "US 10y Treasury" if tnx else "fallback"
 
-    beta, sources["beta"] = float(info.get("beta") or 1.0), "yfinance"
+    beta, sources["beta"] = (
+        (float(info["beta"]), "yfinance") if info.get("beta") else (1.0, "default")
+    )
     for suffix, index in _LOCAL_INDEX.items():
         if resolved_sym.endswith(suffix):
             local = _beta_vs_index(provider, resolved_sym, index)
@@ -832,6 +923,27 @@ def dcf_inputs(symbol: str) -> Dict[str, Any]:
             break
     beta = max(0.4, min(3.0, beta))
     sources["industry"] = industry or "not classified"
+
+    # Say plainly which inputs are placeholders rather than company data, so a thin-data
+    # valuation (new listing, sparse profile) is never presented with full confidence.
+    warnings = []
+    if not sources["growth"].startswith("trailing-annual"):
+        warnings.append(
+            "Revenue growth is from a single quarter or a default, not an annual statement."
+        )
+    if sources["beta"] == "default":
+        warnings.append(
+            "Beta is unavailable (too little trading history); a beta of 1.0 is assumed."
+        )
+    if sources["sales_to_capital"] == "default":
+        warnings.append(
+            "Sales-to-capital is a generic 1.5: the company isn't in Damodaran's industry "
+            "classification and its invested capital isn't available."
+        )
+    if "financial_currency" in sources:
+        warnings.append(
+            f"Statement currency was inferred as {fin_code} (company profile unavailable)."
+        )
 
     return {
         "symbol": resolved_sym,
@@ -867,6 +979,7 @@ def dcf_inputs(symbol: str) -> Dict[str, Any]:
         "book_equity": book_equity,
         "shares": raw_shares / 1e6,
         "sources": sources,
+        "data_warnings": warnings,
     }
 
 
@@ -1038,6 +1151,7 @@ def dcf_valuation(
             sum(s["fair_value_per_share"] * s["weight"] for s in scenarios.values()), 2
         ),
         "assumption_sources": inputs["sources"],
+        "data_warnings": inputs.get("data_warnings", []),
         "inputs": inputs,
     }
 
