@@ -1,0 +1,1899 @@
+{
+ "source": {
+  "countries": "Damodaran, ctrypremJuly26.xlsx (July 1, 2026)",
+  "industries": "Damodaran, Industry Averages (Global) in fcffsimpleginzu.xlsx (Jan 2026)",
+  "rd_life": "Damodaran, R&D converter lookup table (fcffsimpleginzu.xlsx)",
+  "synthetic_rating": "Damodaran, Synthetic rating sheet (fcffsimpleginzu.xlsx)",
+  "industry_by_ticker": "Damodaran, indname.xlsx (Jan 2026)"
+ },
+ "as_of": "2026-07-01",
+ "mature_market_erp": 0.042,
+ "us_erp": 0.0442,
+ "countries": {
+  "Abu Dhabi": {
+   "rating": "Aa2",
+   "default_spread": 0.00393,
+   "erp": 0.04811,
+   "crp": 0.00611,
+   "marginal_tax": 0.09
+  },
+  "Albania": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.15
+  },
+  "Andorra (Principality of)": {
+   "rating": "Baa1",
+   "default_spread": 0.012726,
+   "erp": 0.061783,
+   "crp": 0.019783,
+   "marginal_tax": 0.1
+  },
+  "Angola": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.25
+  },
+  "Argentina": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.35
+  },
+  "Armenia": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.18
+  },
+  "Aruba": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.22
+  },
+  "Australia": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.3
+  },
+  "Austria": {
+   "rating": "Aa1",
+   "default_spread": 0.002186,
+   "erp": 0.045399,
+   "crp": 0.003399,
+   "marginal_tax": 0.23
+  },
+  "Azerbaijan": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.2
+  },
+  "Bahamas": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.25
+  },
+  "Bahrain": {
+   "rating": "B2",
+   "default_spread": 0.043794,
+   "erp": 0.110077,
+   "crp": 0.068077,
+   "marginal_tax": 0.25
+  },
+  "Bangladesh": {
+   "rating": "B2",
+   "default_spread": 0.043794,
+   "erp": 0.110077,
+   "crp": 0.068077,
+   "marginal_tax": 0.275
+  },
+  "Barbados": {
+   "rating": "C",
+   "default_spread": 0.175,
+   "erp": 0.314037,
+   "crp": 0.272037,
+   "marginal_tax": 0.09
+  },
+  "Belarus": {
+   "rating": "C",
+   "default_spread": 0.175,
+   "erp": 0.314037,
+   "crp": 0.272037,
+   "marginal_tax": 0.25
+  },
+  "Belgium": {
+   "rating": "A1",
+   "default_spread": 0.005615,
+   "erp": 0.050728,
+   "crp": 0.008728,
+   "marginal_tax": 0.25
+  },
+  "Belize": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.25
+  },
+  "Benin": {
+   "rating": "B1",
+   "default_spread": 0.03584,
+   "erp": 0.097713,
+   "crp": 0.055713,
+   "marginal_tax": 0.3
+  },
+  "Bermuda": {
+   "rating": "A1",
+   "default_spread": 0.005615,
+   "erp": 0.050728,
+   "crp": 0.008728,
+   "marginal_tax": 0.25
+  },
+  "Bolivia": {
+   "rating": "Caa3",
+   "default_spread": 0.079634,
+   "erp": 0.16579,
+   "crp": 0.12379,
+   "marginal_tax": 0.25
+  },
+  "Bosnia and Herzegovina": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.1
+  },
+  "Botswana": {
+   "rating": "Baa1",
+   "default_spread": 0.012726,
+   "erp": 0.061783,
+   "crp": 0.019783,
+   "marginal_tax": 0.22
+  },
+  "Brazil": {
+   "rating": "Ba1",
+   "default_spread": 0.019932,
+   "erp": 0.072984,
+   "crp": 0.030984,
+   "marginal_tax": 0.34
+  },
+  "Bulgaria": {
+   "rating": "Baa1",
+   "default_spread": 0.012726,
+   "erp": 0.061783,
+   "crp": 0.019783,
+   "marginal_tax": 0.1
+  },
+  "Burkina Faso": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.275
+  },
+  "Cambodia": {
+   "rating": "B2",
+   "default_spread": 0.043794,
+   "erp": 0.110077,
+   "crp": 0.068077,
+   "marginal_tax": 0.2
+  },
+  "Cameroon": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.33
+  },
+  "Canada": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.2614
+  },
+  "Cape Verde": {
+   "rating": "B1",
+   "default_spread": 0.03584,
+   "erp": 0.097713,
+   "crp": 0.055713,
+   "marginal_tax": 0.2686
+  },
+  "Cayman Islands": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.25
+  },
+  "Chile": {
+   "rating": "A2",
+   "default_spread": 0.006738,
+   "erp": 0.052473,
+   "crp": 0.010473,
+   "marginal_tax": 0.27
+  },
+  "China": {
+   "rating": "A1",
+   "default_spread": 0.005615,
+   "erp": 0.050728,
+   "crp": 0.008728,
+   "marginal_tax": 0.25
+  },
+  "Colombia": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.35
+  },
+  "Congo (Democratic Republic of)": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.3
+  },
+  "Congo (Republic of)": {
+   "rating": "Caa2",
+   "default_spread": 0.07168,
+   "erp": 0.153426,
+   "crp": 0.111426,
+   "marginal_tax": 0.2686
+  },
+  "Cook Islands": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.2
+  },
+  "Costa Rica": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.3
+  },
+  "Côte d'Ivoire": {
+   "rating": "Ba2",
+   "default_spread": 0.023956,
+   "erp": 0.079239,
+   "crp": 0.037239,
+   "marginal_tax": 0.25
+  },
+  "Croatia": {
+   "rating": "A3",
+   "default_spread": 0.009545,
+   "erp": 0.056837,
+   "crp": 0.014837,
+   "marginal_tax": 0.18
+  },
+  "Cuba": {
+   "rating": "Ca",
+   "default_spread": 0.095542,
+   "erp": 0.190519,
+   "crp": 0.148519,
+   "marginal_tax": 0.35
+  },
+  "Curacao": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.22
+  },
+  "Cyprus": {
+   "rating": "A3",
+   "default_spread": 0.009545,
+   "erp": 0.056837,
+   "crp": 0.014837,
+   "marginal_tax": 0.125
+  },
+  "Czech Republic": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.21
+  },
+  "Denmark": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.22
+  },
+  "Dominican Republic": {
+   "rating": "Ba2",
+   "default_spread": 0.023956,
+   "erp": 0.079239,
+   "crp": 0.037239,
+   "marginal_tax": 0.27
+  },
+  "Ecuador": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.25
+  },
+  "Egypt": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.225
+  },
+  "El Salvador": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.3
+  },
+  "Estonia": {
+   "rating": "A1",
+   "default_spread": 0.005615,
+   "erp": 0.050728,
+   "crp": 0.008728,
+   "marginal_tax": 0.2
+  },
+  "Ethiopia": {
+   "rating": "Caa3",
+   "default_spread": 0.079634,
+   "erp": 0.16579,
+   "crp": 0.12379,
+   "marginal_tax": 0.3
+  },
+  "Fiji": {
+   "rating": "B1",
+   "default_spread": 0.03584,
+   "erp": 0.097713,
+   "crp": 0.055713,
+   "marginal_tax": 0.25
+  },
+  "Finland": {
+   "rating": "Aa1",
+   "default_spread": 0.002186,
+   "erp": 0.045399,
+   "crp": 0.003399,
+   "marginal_tax": 0.2
+  },
+  "France": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.2583
+  },
+  "Gabon": {
+   "rating": "Caa2",
+   "default_spread": 0.07168,
+   "erp": 0.153426,
+   "crp": 0.111426,
+   "marginal_tax": 0.3
+  },
+  "Georgia": {
+   "rating": "Ba2",
+   "default_spread": 0.023956,
+   "erp": 0.079239,
+   "crp": 0.037239,
+   "marginal_tax": 0.15
+  },
+  "Germany": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.2993
+  },
+  "Ghana": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.25
+  },
+  "Greece": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.22
+  },
+  "Guatemala": {
+   "rating": "Ba1",
+   "default_spread": 0.019932,
+   "erp": 0.072984,
+   "crp": 0.030984,
+   "marginal_tax": 0.25
+  },
+  "Guernsey (States of)": {
+   "rating": "A1",
+   "default_spread": 0.005615,
+   "erp": 0.050728,
+   "crp": 0.008728,
+   "marginal_tax": 0.25
+  },
+  "Honduras": {
+   "rating": "B1",
+   "default_spread": 0.03584,
+   "erp": 0.097713,
+   "crp": 0.055713,
+   "marginal_tax": 0.3
+  },
+  "Hong Kong": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.165
+  },
+  "Hungary": {
+   "rating": "Baa2",
+   "default_spread": 0.015159,
+   "erp": 0.065565,
+   "crp": 0.023565,
+   "marginal_tax": 0.09
+  },
+  "Iceland": {
+   "rating": "A1",
+   "default_spread": 0.005615,
+   "erp": 0.050728,
+   "crp": 0.008728,
+   "marginal_tax": 0.21
+  },
+  "India": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.3
+  },
+  "Indonesia": {
+   "rating": "Baa2",
+   "default_spread": 0.015159,
+   "erp": 0.065565,
+   "crp": 0.023565,
+   "marginal_tax": 0.22
+  },
+  "Iraq": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.15
+  },
+  "Ireland": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.125
+  },
+  "Isle of Man": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.25
+  },
+  "Israel": {
+   "rating": "Baa1",
+   "default_spread": 0.012726,
+   "erp": 0.061783,
+   "crp": 0.019783,
+   "marginal_tax": 0.23
+  },
+  "Italy": {
+   "rating": "Baa2",
+   "default_spread": 0.015159,
+   "erp": 0.065565,
+   "crp": 0.023565,
+   "marginal_tax": 0.2781
+  },
+  "Jamaica": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.25
+  },
+  "Japan": {
+   "rating": "A1",
+   "default_spread": 0.005615,
+   "erp": 0.050728,
+   "crp": 0.008728,
+   "marginal_tax": 0.2974
+  },
+  "Jersey (States of)": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.25
+  },
+  "Jordan": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.2
+  },
+  "Kazakhstan": {
+   "rating": "Baa1",
+   "default_spread": 0.012726,
+   "erp": 0.061783,
+   "crp": 0.019783,
+   "marginal_tax": 0.2
+  },
+  "Kenya": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.3
+  },
+  "Korea": {
+   "rating": "Aa2",
+   "default_spread": 0.00393,
+   "erp": 0.04811,
+   "crp": 0.00611,
+   "marginal_tax": 0.264
+  },
+  "Kuwait": {
+   "rating": "A1",
+   "default_spread": 0.005615,
+   "erp": 0.050728,
+   "crp": 0.008728,
+   "marginal_tax": 0.15
+  },
+  "Kyrgyzstan": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.1
+  },
+  "Laos": {
+   "rating": "Caa2",
+   "default_spread": 0.07168,
+   "erp": 0.153426,
+   "crp": 0.111426,
+   "marginal_tax": 0.2
+  },
+  "Latvia": {
+   "rating": "A3",
+   "default_spread": 0.009545,
+   "erp": 0.056837,
+   "crp": 0.014837,
+   "marginal_tax": 0.2
+  },
+  "Lebanon": {
+   "rating": "C",
+   "default_spread": 0.175,
+   "erp": 0.314037,
+   "crp": 0.272037,
+   "marginal_tax": 0.17
+  },
+  "Liechtenstein": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.125
+  },
+  "Lithuania": {
+   "rating": "A2",
+   "default_spread": 0.006738,
+   "erp": 0.052473,
+   "crp": 0.010473,
+   "marginal_tax": 0.15
+  },
+  "Luxembourg": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.2494
+  },
+  "Macao": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.25
+  },
+  "Macedonia": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.1
+  },
+  "Malaysia": {
+   "rating": "A3",
+   "default_spread": 0.009545,
+   "erp": 0.056837,
+   "crp": 0.014837,
+   "marginal_tax": 0.24
+  },
+  "Maldives": {
+   "rating": "Caa2",
+   "default_spread": 0.07168,
+   "erp": 0.153426,
+   "crp": 0.111426,
+   "marginal_tax": 0.15
+  },
+  "Mali": {
+   "rating": "Caa2",
+   "default_spread": 0.07168,
+   "erp": 0.153426,
+   "crp": 0.111426,
+   "marginal_tax": 0.3
+  },
+  "Malta": {
+   "rating": "A2",
+   "default_spread": 0.006738,
+   "erp": 0.052473,
+   "crp": 0.010473,
+   "marginal_tax": 0.35
+  },
+  "Mauritius": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.15
+  },
+  "Mexico": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.3
+  },
+  "Moldova": {
+   "rating": "B2",
+   "default_spread": 0.043794,
+   "erp": 0.110077,
+   "crp": 0.068077,
+   "marginal_tax": 0.12
+  },
+  "Mongolia": {
+   "rating": "B1",
+   "default_spread": 0.03584,
+   "erp": 0.097713,
+   "crp": 0.055713,
+   "marginal_tax": 0.25
+  },
+  "Montenegro": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.15
+  },
+  "Montserrat": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.3
+  },
+  "Morocco": {
+   "rating": "Ba1",
+   "default_spread": 0.019932,
+   "erp": 0.072984,
+   "crp": 0.030984,
+   "marginal_tax": 0.33
+  },
+  "Mozambique": {
+   "rating": "Caa2",
+   "default_spread": 0.07168,
+   "erp": 0.153426,
+   "crp": 0.111426,
+   "marginal_tax": 0.32
+  },
+  "Namibia": {
+   "rating": "B1",
+   "default_spread": 0.03584,
+   "erp": 0.097713,
+   "crp": 0.055713,
+   "marginal_tax": 0.32
+  },
+  "Nepal": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.25
+  },
+  "Netherlands": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.258
+  },
+  "New Zealand": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.28
+  },
+  "Nicaragua": {
+   "rating": "B2",
+   "default_spread": 0.043794,
+   "erp": 0.110077,
+   "crp": 0.068077,
+   "marginal_tax": 0.3
+  },
+  "Niger": {
+   "rating": "Caa3",
+   "default_spread": 0.079634,
+   "erp": 0.16579,
+   "crp": 0.12379,
+   "marginal_tax": 0.3
+  },
+  "Nigeria": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.3
+  },
+  "Norway": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.22
+  },
+  "Oman": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.15
+  },
+  "Pakistan": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.29
+  },
+  "Panama": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.25
+  },
+  "Papua New Guinea": {
+   "rating": "B2",
+   "default_spread": 0.043794,
+   "erp": 0.110077,
+   "crp": 0.068077,
+   "marginal_tax": 0.3
+  },
+  "Paraguay": {
+   "rating": "Ba1",
+   "default_spread": 0.019932,
+   "erp": 0.072984,
+   "crp": 0.030984,
+   "marginal_tax": 0.1
+  },
+  "Peru": {
+   "rating": "Baa1",
+   "default_spread": 0.012726,
+   "erp": 0.061783,
+   "crp": 0.019783,
+   "marginal_tax": 0.295
+  },
+  "Philippines": {
+   "rating": "Baa2",
+   "default_spread": 0.015159,
+   "erp": 0.065565,
+   "crp": 0.023565,
+   "marginal_tax": 0.25
+  },
+  "Poland": {
+   "rating": "A2",
+   "default_spread": 0.006738,
+   "erp": 0.052473,
+   "crp": 0.010473,
+   "marginal_tax": 0.19
+  },
+  "Portugal": {
+   "rating": "A3",
+   "default_spread": 0.009545,
+   "erp": 0.056837,
+   "crp": 0.014837,
+   "marginal_tax": 0.315
+  },
+  "Qatar": {
+   "rating": "Aa2",
+   "default_spread": 0.00393,
+   "erp": 0.04811,
+   "crp": 0.00611,
+   "marginal_tax": 0.1
+  },
+  "Ras Al Khaimah (Emirate of)": {
+   "rating": "A3",
+   "default_spread": 0.009545,
+   "erp": 0.056837,
+   "crp": 0.014837,
+   "marginal_tax": 0.1894
+  },
+  "Romania": {
+   "rating": "Baa3",
+   "default_spread": 0.017499,
+   "erp": 0.069202,
+   "crp": 0.027202,
+   "marginal_tax": 0.16
+  },
+  "Rwanda": {
+   "rating": "B2",
+   "default_spread": 0.043794,
+   "erp": 0.110077,
+   "crp": 0.068077,
+   "marginal_tax": 0.28
+  },
+  "Saudi Arabia": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.2
+  },
+  "Senegal": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.3
+  },
+  "Serbia": {
+   "rating": "Ba2",
+   "default_spread": 0.023956,
+   "erp": 0.079239,
+   "crp": 0.037239,
+   "marginal_tax": 0.15
+  },
+  "Sharjah": {
+   "rating": "Ba1",
+   "default_spread": 0.019932,
+   "erp": 0.072984,
+   "crp": 0.030984,
+   "marginal_tax": 0.1894
+  },
+  "Singapore": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.17
+  },
+  "Slovakia": {
+   "rating": "A3",
+   "default_spread": 0.009545,
+   "erp": 0.056837,
+   "crp": 0.014837,
+   "marginal_tax": 0.21
+  },
+  "Slovenia": {
+   "rating": "A2",
+   "default_spread": 0.006738,
+   "erp": 0.052473,
+   "crp": 0.010473,
+   "marginal_tax": 0.22
+  },
+  "Solomon Islands": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.3
+  },
+  "South Africa": {
+   "rating": "Ba2",
+   "default_spread": 0.023956,
+   "erp": 0.079239,
+   "crp": 0.037239,
+   "marginal_tax": 0.27
+  },
+  "Spain": {
+   "rating": "A3",
+   "default_spread": 0.009545,
+   "erp": 0.056837,
+   "crp": 0.014837,
+   "marginal_tax": 0.25
+  },
+  "Sri Lanka": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.3
+  },
+  "St. Maarten": {
+   "rating": "Ba2",
+   "default_spread": 0.023956,
+   "erp": 0.079239,
+   "crp": 0.037239,
+   "marginal_tax": 0.2
+  },
+  "St. Vincent & the Grenadines": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.28
+  },
+  "Suriname": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.36
+  },
+  "Swaziland": {
+   "rating": "B2",
+   "default_spread": 0.043794,
+   "erp": 0.110077,
+   "crp": 0.068077,
+   "marginal_tax": 0.25
+  },
+  "Sweden": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.206
+  },
+  "Switzerland": {
+   "rating": "Aaa",
+   "default_spread": 0.0,
+   "erp": 0.042,
+   "crp": 0.0,
+   "marginal_tax": 0.1961
+  },
+  "Taiwan": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.2
+  },
+  "Tajikistan": {
+   "rating": "B2",
+   "default_spread": 0.043794,
+   "erp": 0.110077,
+   "crp": 0.068077,
+   "marginal_tax": 0.18
+  },
+  "Tanzania": {
+   "rating": "B1",
+   "default_spread": 0.03584,
+   "erp": 0.097713,
+   "crp": 0.055713,
+   "marginal_tax": 0.3
+  },
+  "Thailand": {
+   "rating": "Baa1",
+   "default_spread": 0.012726,
+   "erp": 0.061783,
+   "crp": 0.019783,
+   "marginal_tax": 0.2
+  },
+  "Togo": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.27
+  },
+  "Trinidad and Tobago": {
+   "rating": "Ba2",
+   "default_spread": 0.023956,
+   "erp": 0.079239,
+   "crp": 0.037239,
+   "marginal_tax": 0.3
+  },
+  "Tunisia": {
+   "rating": "Caa1",
+   "default_spread": 0.059702,
+   "erp": 0.134806,
+   "crp": 0.092806,
+   "marginal_tax": 0.15
+  },
+  "Turkey": {
+   "rating": "Ba3",
+   "default_spread": 0.028634,
+   "erp": 0.086512,
+   "crp": 0.044512,
+   "marginal_tax": 0.25
+  },
+  "Turks and Caicos Islands": {
+   "rating": "Baa1",
+   "default_spread": 0.012726,
+   "erp": 0.061783,
+   "crp": 0.019783,
+   "marginal_tax": 0.25
+  },
+  "Uganda": {
+   "rating": "B3",
+   "default_spread": 0.051748,
+   "erp": 0.122442,
+   "crp": 0.080442,
+   "marginal_tax": 0.3
+  },
+  "Ukraine": {
+   "rating": "Ca",
+   "default_spread": 0.095542,
+   "erp": 0.190519,
+   "crp": 0.148519,
+   "marginal_tax": 0.18
+  },
+  "United Arab Emirates": {
+   "rating": "Aa2",
+   "default_spread": 0.00393,
+   "erp": 0.04811,
+   "crp": 0.00611,
+   "marginal_tax": 0.09
+  },
+  "United Kingdom": {
+   "rating": "Aa3",
+   "default_spread": 0.004772,
+   "erp": 0.049419,
+   "crp": 0.007419,
+   "marginal_tax": 0.25
+  },
+  "United States": {
+   "rating": "Aa1",
+   "default_spread": 0.002186,
+   "erp": 0.0442,
+   "crp": 0.002186,
+   "marginal_tax": 0.25
+  },
+  "Uruguay": {
+   "rating": "Baa1",
+   "default_spread": 0.012726,
+   "erp": 0.061783,
+   "crp": 0.019783,
+   "marginal_tax": 0.25
+  },
+  "Uzbekistan": {
+   "rating": "Ba2",
+   "default_spread": 0.023956,
+   "erp": 0.079239,
+   "crp": 0.037239,
+   "marginal_tax": 0.15
+  },
+  "Venezuela": {
+   "rating": "Caa3",
+   "default_spread": 0.079634,
+   "erp": 0.16579,
+   "crp": 0.12379,
+   "marginal_tax": 0.34
+  },
+  "Vietnam": {
+   "rating": "Ba2",
+   "default_spread": 0.023956,
+   "erp": 0.079239,
+   "crp": 0.037239,
+   "marginal_tax": 0.2
+  },
+  "Zambia": {
+   "rating": "Caa2",
+   "default_spread": 0.07168,
+   "erp": 0.153426,
+   "crp": 0.111426,
+   "marginal_tax": 0.3
+  },
+  "Algeria": {
+   "rating": 0.09771282943822827,
+   "default_spread": 0.055713,
+   "erp": 0.03584,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Brunei": {
+   "rating": 0.04941867963798863,
+   "default_spread": 0.007419,
+   "erp": 0.004772,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Gambia": {
+   "rating": 0.09771282943822827,
+   "default_spread": 0.055713,
+   "erp": 0.03584,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Guinea": {
+   "rating": 0.15342565887645654,
+   "default_spread": 0.111426,
+   "erp": 0.07168,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Guinea-Bissau": {
+   "rating": 0.13480622762817138,
+   "default_spread": 0.092806,
+   "erp": 0.059702,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Guyana": {
+   "rating": 0.06178314570130299,
+   "default_spread": 0.019783,
+   "erp": 0.012726,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Haiti": {
+   "rating": 0.16579012493977094,
+   "default_spread": 0.12379,
+   "erp": 0.079634,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Iran": {
+   "rating": 0.15342565887645654,
+   "default_spread": 0.111426,
+   "erp": 0.07168,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Korea, D.P.R.": {
+   "rating": 0.19051905706639968,
+   "default_spread": 0.148519,
+   "erp": 0.095542,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Liberia": {
+   "rating": 0.15342565887645654,
+   "default_spread": 0.111426,
+   "erp": 0.07168,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Libya": {
+   "rating": 0.09771282943822827,
+   "default_spread": 0.055713,
+   "erp": 0.03584,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Madagascar": {
+   "rating": 0.13480622762817138,
+   "default_spread": 0.092806,
+   "erp": 0.059702,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Malawi": {
+   "rating": 0.19051905706639968,
+   "default_spread": 0.148519,
+   "erp": 0.095542,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Myanmar": {
+   "rating": 0.19051905706639968,
+   "default_spread": 0.148519,
+   "erp": 0.095542,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Russia": {
+   "rating": 0.07923886249657033,
+   "default_spread": 0.037239,
+   "erp": 0.023956,
+   "crp": 0.0,
+   "marginal_tax": 0.2
+  },
+  "Sierra Leone": {
+   "rating": 0.122441761564857,
+   "default_spread": 0.080442,
+   "erp": 0.051748,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Somalia": {
+   "rating": 0.16579012493977094,
+   "default_spread": 0.12379,
+   "erp": 0.079634,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Sudan": {
+   "rating": 0.31403671709531467,
+   "default_spread": 0.272037,
+   "erp": 0.175,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Syria": {
+   "rating": 0.15342565887645654,
+   "default_spread": 0.111426,
+   "erp": 0.07168,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Yemen, Republic": {
+   "rating": 0.19051905706639968,
+   "default_spread": 0.148519,
+   "erp": 0.095542,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  },
+  "Zimbabwe": {
+   "rating": 0.11007729550154263,
+   "default_spread": 0.068077,
+   "erp": 0.043794,
+   "crp": 0.0,
+   "marginal_tax": 0.25
+  }
+ },
+ "industries": {
+  "Advertising": {
+   "sales_to_capital": 2.5909,
+   "pretax_margin": 0.0855,
+   "rd_life": 2
+  },
+  "Aerospace/Defense": {
+   "sales_to_capital": 2.4649,
+   "pretax_margin": 0.0918,
+   "rd_life": 10
+  },
+  "Air Transport": {
+   "sales_to_capital": 1.314,
+   "pretax_margin": 0.0821,
+   "rd_life": 10
+  },
+  "Apparel": {
+   "sales_to_capital": 1.5206,
+   "pretax_margin": 0.1259,
+   "rd_life": 3
+  },
+  "Auto & Truck": {
+   "sales_to_capital": 1.1905,
+   "pretax_margin": 0.0431,
+   "rd_life": 10
+  },
+  "Auto Parts": {
+   "sales_to_capital": 1.9787,
+   "pretax_margin": 0.0545,
+   "rd_life": 5
+  },
+  "Bank (Money Center)": {
+   "sales_to_capital": 0.1357,
+   "pretax_margin": 0.0038,
+   "rd_life": 2
+  },
+  "Banks (Regional)": {
+   "sales_to_capital": 0.156,
+   "pretax_margin": -0.0,
+   "rd_life": 2
+  },
+  "Beverage (Alcoholic)": {
+   "sales_to_capital": 0.8429,
+   "pretax_margin": 0.2247,
+   "rd_life": 3
+  },
+  "Beverage (Soft)": {
+   "sales_to_capital": 1.6841,
+   "pretax_margin": 0.1762,
+   "rd_life": 3
+  },
+  "Broadcasting": {
+   "sales_to_capital": 1.1247,
+   "pretax_margin": 0.0997,
+   "rd_life": 10
+  },
+  "Brokerage & Investment Banking": {
+   "sales_to_capital": 0.2206,
+   "pretax_margin": 0.0094,
+   "rd_life": 2
+  },
+  "Building Materials": {
+   "sales_to_capital": 1.736,
+   "pretax_margin": 0.104,
+   "rd_life": 5
+  },
+  "Business & Consumer Services": {
+   "sales_to_capital": 2.7981,
+   "pretax_margin": 0.1015,
+   "rd_life": 3
+  },
+  "Cable TV": {
+   "sales_to_capital": 0.729,
+   "pretax_margin": 0.1734,
+   "rd_life": 10
+  },
+  "Chemical (Basic)": {
+   "sales_to_capital": 1.0266,
+   "pretax_margin": 0.0368,
+   "rd_life": 10
+  },
+  "Chemical (Diversified)": {
+   "sales_to_capital": 1.2117,
+   "pretax_margin": 0.0683,
+   "rd_life": 10
+  },
+  "Chemical (Specialty)": {
+   "sales_to_capital": 1.0868,
+   "pretax_margin": 0.1097,
+   "rd_life": 10
+  },
+  "Coal & Related Energy": {
+   "sales_to_capital": 1.0181,
+   "pretax_margin": 0.1604,
+   "rd_life": 5
+  },
+  "Computer Services": {
+   "sales_to_capital": 3.7547,
+   "pretax_margin": 0.0756,
+   "rd_life": 3
+  },
+  "Computers/Peripherals": {
+   "sales_to_capital": 2.4835,
+   "pretax_margin": 0.1261,
+   "rd_life": 5
+  },
+  "Construction Supplies": {
+   "sales_to_capital": 1.2258,
+   "pretax_margin": 0.0971,
+   "rd_life": 5
+  },
+  "Diversified": {
+   "sales_to_capital": 0.713,
+   "pretax_margin": 0.1511,
+   "rd_life": 5
+  },
+  "Drugs (Biotechnology)": {
+   "sales_to_capital": 0.7137,
+   "pretax_margin": 0.0748,
+   "rd_life": 10
+  },
+  "Drugs (Pharmaceutical)": {
+   "sales_to_capital": 1.0698,
+   "pretax_margin": 0.2307,
+   "rd_life": 10
+  },
+  "Education": {
+   "sales_to_capital": 1.1586,
+   "pretax_margin": 0.1593,
+   "rd_life": 3
+  },
+  "Electrical Equipment": {
+   "sales_to_capital": 1.7613,
+   "pretax_margin": 0.0835,
+   "rd_life": 10
+  },
+  "Electronics (Consumer & Office)": {
+   "sales_to_capital": 1.9059,
+   "pretax_margin": 0.0602,
+   "rd_life": 5
+  },
+  "Electronics (General)": {
+   "sales_to_capital": 1.6967,
+   "pretax_margin": 0.0629,
+   "rd_life": 5
+  },
+  "Engineering/Construction": {
+   "sales_to_capital": 1.8622,
+   "pretax_margin": 0.051,
+   "rd_life": 3
+  },
+  "Entertainment": {
+   "sales_to_capital": 1.2032,
+   "pretax_margin": 0.1164,
+   "rd_life": 3
+  },
+  "Environmental & Waste Services": {
+   "sales_to_capital": 1.0388,
+   "pretax_margin": 0.1127,
+   "rd_life": 5
+  },
+  "Farming/Agriculture": {
+   "sales_to_capital": 1.2978,
+   "pretax_margin": 0.0639,
+   "rd_life": 3
+  },
+  "Financial Svcs. (Non-bank & Insurance)": {
+   "sales_to_capital": 0.0937,
+   "pretax_margin": 0.1413,
+   "rd_life": 2
+  },
+  "Food Processing": {
+   "sales_to_capital": 1.7085,
+   "pretax_margin": 0.0854,
+   "rd_life": 3
+  },
+  "Food Wholesalers": {
+   "sales_to_capital": 5.1703,
+   "pretax_margin": 0.0254,
+   "rd_life": 3
+  },
+  "Furn/Home Furnishings": {
+   "sales_to_capital": 2.273,
+   "pretax_margin": 0.0765,
+   "rd_life": 3
+  },
+  "Green & Renewable Energy": {
+   "sales_to_capital": 0.2239,
+   "pretax_margin": 0.2772,
+   "rd_life": 5
+  },
+  "Healthcare Products": {
+   "sales_to_capital": 1.2979,
+   "pretax_margin": 0.1427,
+   "rd_life": 5
+  },
+  "Healthcare Support Services": {
+   "sales_to_capital": 8.0175,
+   "pretax_margin": 0.031,
+   "rd_life": 3
+  },
+  "Heathcare Information and Technology": {
+   "sales_to_capital": 1.086,
+   "pretax_margin": 0.1479,
+   "rd_life": 3
+  },
+  "Homebuilding": {
+   "sales_to_capital": 1.2693,
+   "pretax_margin": 0.1071,
+   "rd_life": 5
+  },
+  "Hospitals/Healthcare Facilities": {
+   "sales_to_capital": 1.3636,
+   "pretax_margin": 0.1227,
+   "rd_life": 3
+  },
+  "Hotel/Gaming": {
+   "sales_to_capital": 0.9417,
+   "pretax_margin": 0.1666,
+   "rd_life": 3
+  },
+  "Household Products": {
+   "sales_to_capital": 1.7937,
+   "pretax_margin": 0.1617,
+   "rd_life": 3
+  },
+  "Information Services": {
+   "sales_to_capital": 2.7131,
+   "pretax_margin": 0.1178,
+   "rd_life": 3
+  },
+  "Insurance (General)": {
+   "sales_to_capital": 1.9599,
+   "pretax_margin": 0.1545,
+   "rd_life": 3
+  },
+  "Insurance (Life)": {
+   "sales_to_capital": 1.0114,
+   "pretax_margin": 0.1729,
+   "rd_life": 3
+  },
+  "Insurance (Prop/Cas.)": {
+   "sales_to_capital": 1.4651,
+   "pretax_margin": 0.1526,
+   "rd_life": 3
+  },
+  "Investments & Asset Management": {
+   "sales_to_capital": 0.3595,
+   "pretax_margin": 0.2505,
+   "rd_life": 3
+  },
+  "Machinery": {
+   "sales_to_capital": 1.4801,
+   "pretax_margin": 0.1036,
+   "rd_life": 10
+  },
+  "Metals & Mining": {
+   "sales_to_capital": 1.3473,
+   "pretax_margin": 0.1073,
+   "rd_life": 5
+  },
+  "Office Equipment & Services": {
+   "sales_to_capital": 2.0881,
+   "pretax_margin": 0.0773,
+   "rd_life": 5
+  },
+  "Oil/Gas (Integrated)": {
+   "sales_to_capital": 1.3686,
+   "pretax_margin": 0.1427,
+   "rd_life": 5
+  },
+  "Oil/Gas (Production and Exploration)": {
+   "sales_to_capital": 0.5728,
+   "pretax_margin": 0.2851,
+   "rd_life": 5
+  },
+  "Oil/Gas Distribution": {
+   "sales_to_capital": 0.6044,
+   "pretax_margin": 0.1724,
+   "rd_life": 10
+  },
+  "Oilfield Svcs/Equip.": {
+   "sales_to_capital": 2.0988,
+   "pretax_margin": 0.0501,
+   "rd_life": 5
+  },
+  "Packaging & Container": {
+   "sales_to_capital": 1.4252,
+   "pretax_margin": 0.0784,
+   "rd_life": 5
+  },
+  "Paper/Forest Products": {
+   "sales_to_capital": 0.7936,
+   "pretax_margin": 0.043,
+   "rd_life": 10
+  },
+  "Power": {
+   "sales_to_capital": 0.5656,
+   "pretax_margin": 0.1516,
+   "rd_life": 10
+  },
+  "Precious Metals": {
+   "sales_to_capital": 0.9176,
+   "pretax_margin": 0.2494,
+   "rd_life": 5
+  },
+  "Publishing & Newspapers": {
+   "sales_to_capital": 1.5592,
+   "pretax_margin": 0.0738,
+   "rd_life": 3
+  },
+  "R.E.I.T.": {
+   "sales_to_capital": 0.1271,
+   "pretax_margin": 0.3192,
+   "rd_life": 3
+  },
+  "Real Estate (Development)": {
+   "sales_to_capital": 0.4115,
+   "pretax_margin": 0.0346,
+   "rd_life": 3
+  },
+  "Real Estate (General/Diversified)": {
+   "sales_to_capital": 0.2693,
+   "pretax_margin": 0.1492,
+   "rd_life": 3
+  },
+  "Real Estate (Operations & Services)": {
+   "sales_to_capital": 0.2773,
+   "pretax_margin": 0.174,
+   "rd_life": 3
+  },
+  "Recreation": {
+   "sales_to_capital": 1.2056,
+   "pretax_margin": 0.1052,
+   "rd_life": 5
+  },
+  "Reinsurance": {
+   "sales_to_capital": 1.5931,
+   "pretax_margin": 0.1332,
+   "rd_life": 3
+  },
+  "Restaurant/Dining": {
+   "sales_to_capital": 1.9954,
+   "pretax_margin": 0.0951,
+   "rd_life": 2
+  },
+  "Retail (Automotive)": {
+   "sales_to_capital": 2.5373,
+   "pretax_margin": 0.0515,
+   "rd_life": 2
+  },
+  "Retail (Building Supply)": {
+   "sales_to_capital": 2.7428,
+   "pretax_margin": 0.1059,
+   "rd_life": 2
+  },
+  "Retail (Distributors)": {
+   "sales_to_capital": 1.8278,
+   "pretax_margin": 0.0479,
+   "rd_life": 2
+  },
+  "Retail (General)": {
+   "sales_to_capital": 2.7255,
+   "pretax_margin": 0.0647,
+   "rd_life": 2
+  },
+  "Retail (Grocery and Food)": {
+   "sales_to_capital": 3.4999,
+   "pretax_margin": 0.0378,
+   "rd_life": 2
+  },
+  "Retail (REITs)": {
+   "sales_to_capital": 0.111,
+   "pretax_margin": 0.5002,
+   "rd_life": 3
+  },
+  "Retail (Special Lines)": {
+   "sales_to_capital": 2.7207,
+   "pretax_margin": 0.0741,
+   "rd_life": 2
+  },
+  "Rubber& Tires": {
+   "sales_to_capital": 1.4518,
+   "pretax_margin": 0.073,
+   "rd_life": 5
+  },
+  "Semiconductor": {
+   "sales_to_capital": 1.1093,
+   "pretax_margin": 0.2699,
+   "rd_life": 5
+  },
+  "Semiconductor Equip": {
+   "sales_to_capital": 1.2338,
+   "pretax_margin": 0.2028,
+   "rd_life": 5
+  },
+  "Shipbuilding & Marine": {
+   "sales_to_capital": 0.7137,
+   "pretax_margin": 0.1434,
+   "rd_life": 10
+  },
+  "Shoe": {
+   "sales_to_capital": 2.1149,
+   "pretax_margin": 0.088,
+   "rd_life": 3
+  },
+  "Software (Entertainment)": {
+   "sales_to_capital": 1.1502,
+   "pretax_margin": 0.319,
+   "rd_life": 3
+  },
+  "Software (Internet)": {
+   "sales_to_capital": 1.4006,
+   "pretax_margin": 0.0617,
+   "rd_life": 3
+  },
+  "Software (System & Application)": {
+   "sales_to_capital": 1.5432,
+   "pretax_margin": 0.2741,
+   "rd_life": 3
+  },
+  "Steel": {
+   "sales_to_capital": 1.2596,
+   "pretax_margin": 0.0485,
+   "rd_life": 5
+  },
+  "Telecom (Wireless)": {
+   "sales_to_capital": 0.7158,
+   "pretax_margin": 0.1583,
+   "rd_life": 5
+  },
+  "Telecom. Equipment": {
+   "sales_to_capital": 2.0507,
+   "pretax_margin": 0.1103,
+   "rd_life": 10
+  },
+  "Telecom. Services": {
+   "sales_to_capital": 0.7258,
+   "pretax_margin": 0.1609,
+   "rd_life": 5
+  },
+  "Tobacco": {
+   "sales_to_capital": 0.9567,
+   "pretax_margin": 0.3267,
+   "rd_life": 5
+  },
+  "Transportation": {
+   "sales_to_capital": 1.475,
+   "pretax_margin": 0.0721,
+   "rd_life": 5
+  },
+  "Transportation (Railroads)": {
+   "sales_to_capital": 0.4347,
+   "pretax_margin": 0.2345,
+   "rd_life": 5
+  },
+  "Trucking": {
+   "sales_to_capital": 1.369,
+   "pretax_margin": 0.0745,
+   "rd_life": 5
+  },
+  "Utility (General)": {
+   "sales_to_capital": 0.6478,
+   "pretax_margin": 0.1522,
+   "rd_life": 10
+  },
+  "Utility (Water)": {
+   "sales_to_capital": 0.2931,
+   "pretax_margin": 0.266,
+   "rd_life": 10
+  },
+  "Total Market": {
+   "sales_to_capital": 0.7615,
+   "pretax_margin": 0.1056,
+   "rd_life": null
+  },
+  "Total Market (without financials)": {
+   "sales_to_capital": 1.2214,
+   "pretax_margin": 0.1075,
+   "rd_life": null
+  }
+ },
+ "synthetic_rating": {
+  "note": "rows: [interest coverage upper bound, rating, default spread]; first row whose bound >= coverage",
+  "large_firm": [
+   [
+    0.199999,
+    "D2/D",
+    0.19
+   ],
+   [
+    0.649999,
+    "C2/C",
+    0.16
+   ],
+   [
+    0.799999,
+    "Ca2/CC",
+    0.126101
+   ],
+   [
+    1.249999,
+    "Caa/CCC",
+    0.0885
+   ],
+   [
+    1.499999,
+    "B3/B-",
+    0.050899
+   ],
+   [
+    1.749999,
+    "B2/B",
+    0.032098
+   ],
+   [
+    1.999999,
+    "B1/B+",
+    0.027531
+   ],
+   [
+    2.2499999,
+    "Ba2/BB",
+    0.018394999999999998
+   ],
+   [
+    2.49999,
+    "Ba1/BB+",
+    0.013828
+   ],
+   [
+    2.999999,
+    "Baa2/BBB",
+    0.011113
+   ],
+   [
+    4.249999,
+    "A3/A-",
+    0.008872
+   ],
+   [
+    5.499999,
+    "A2/A",
+    0.007751000000000001
+   ],
+   [
+    6.499999,
+    "A1/A+",
+    0.0070030000000000005
+   ],
+   [
+    8.499999,
+    "Aa2/AA",
+    0.0055060000000000005
+   ],
+   [
+    100000,
+    "Aaa/AAA",
+    0.004
+   ]
+  ],
+  "small_firm": [
+   [
+    0.499999,
+    "D2/D",
+    0.19
+   ],
+   [
+    0.799999,
+    "C2/C",
+    0.16
+   ],
+   [
+    1.249999,
+    "Ca2/CC",
+    0.126101
+   ],
+   [
+    1.499999,
+    "Caa/CCC",
+    0.0885
+   ],
+   [
+    1.999999,
+    "B3/B-",
+    0.050899
+   ],
+   [
+    2.499999,
+    "B2/B",
+    0.032098
+   ],
+   [
+    2.999999,
+    "B1/B+",
+    0.027531
+   ],
+   [
+    3.499999,
+    "Ba2/BB",
+    0.018394999999999998
+   ],
+   [
+    3.9999999,
+    "Ba1/BB+",
+    0.013828
+   ],
+   [
+    4.499999,
+    "Baa2/BBB",
+    0.011113
+   ],
+   [
+    5.999999,
+    "A3/A-",
+    0.008872
+   ],
+   [
+    7.499999,
+    "A2/A",
+    0.007751000000000001
+   ],
+   [
+    9.499999,
+    "A1/A+",
+    0.0070030000000000005
+   ],
+   [
+    12.499999,
+    "Aa2/AA",
+    0.0055060000000000005
+   ],
+   [
+    100000,
+    "Aaa/AAA",
+    0.004
+   ]
+  ]
+ }
+}
