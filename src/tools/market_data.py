@@ -1094,6 +1094,18 @@ def dcf_valuation(
         }
 
     wacc_pct = coc["cost_of_capital"] * 100
+
+    # Computed in USD millions; shown in the listing's currency and customary unit
+    # (₹ Cr for India, £ M rather than pence for London). Spot conversion is linear, so
+    # the displayed figures are the same valuation, just readable.
+    disp_code, sub_mult = _SUBUNITS.get(inputs["currency_code"], (inputs["currency_code"], 1.0))
+    unit, unit_div = ("Cr", 1e7) if disp_code == "INR" else ("M", 1e6)
+    per_usd_m = 1e6 * sub_mult / inputs["usd_per_listing_unit"] / unit_div
+
+    def money(x):
+        return round(x * per_usd_m, 2)
+
+    money_keys = {"revenue", "ebit", "nopat", "reinvestment", "fcff", "pv"}
     return {
         "symbol": inputs["symbol"],
         "name": inputs["name"],
@@ -1103,8 +1115,9 @@ def dcf_valuation(
         "financial_currency": inputs["financial_currency"],
         "fx_rate": inputs["usd_per_financial_unit"],
         "valuation_currency": "USD",
-        "money_symbol": "$",
-        "unit": "M",
+        "display_currency": disp_code,
+        "money_symbol": _SYMBOLS.get(disp_code, disp_code + " "),
+        "unit": unit,
         "industry": inputs["industry"],
         "cmp": round(cmp_price, 2),
         "model": "Damodaran FCFF (fcffsimpleginzu), 10-year, valued in USD",
@@ -1125,20 +1138,25 @@ def dcf_valuation(
         "we": round(coc["equity_weight"], 3),
         "wd": round(coc["debt_weight"], 3),
         "stable_wacc": round(v["terminal"]["cost_of_capital"] * 100, 2),
-        "base_revenue": round(revenue, 2),
-        "forecast": [{k: round(x, 6) for k, x in row.items()} for row in v["forecast"]],
-        "terminal": {k: round(x, 6) for k, x in v["terminal"].items()},
-        "total_pv_fcf": round(v["pv_fcff_10y"], 2),
-        "terminal_value": round(v["terminal_value"], 2),
-        "pv_terminal_value": round(v["pv_terminal_value"], 2),
-        "enterprise_value": round(v["operating_assets"], 2),
-        "debt": round(inputs["debt"], 2),
-        "cash": round(inputs["cash"], 2),
-        "minority_interest": round(inputs["minority"], 2),
-        "non_operating_assets": round(inputs["non_operating_assets"], 2),
-        "rd_adjustment": round(inputs["rd_adjustment"], 2),
-        "research_asset": round(inputs["research_asset"], 2),
-        "equity_value": round(v["equity_value"], 2),
+        "base_revenue": money(revenue),
+        "forecast": [
+            {k: money(x) if k in money_keys else round(x, 6) for k, x in row.items()}
+            for row in v["forecast"]
+        ],
+        "terminal": {
+            k: money(x) if k in money_keys else round(x, 6) for k, x in v["terminal"].items()
+        },
+        "total_pv_fcf": money(v["pv_fcff_10y"]),
+        "terminal_value": money(v["terminal_value"]),
+        "pv_terminal_value": money(v["pv_terminal_value"]),
+        "enterprise_value": money(v["operating_assets"]),
+        "debt": money(inputs["debt"]),
+        "cash": money(inputs["cash"]),
+        "minority_interest": money(inputs["minority"]),
+        "non_operating_assets": money(inputs["non_operating_assets"]),
+        "rd_adjustment": money(inputs["rd_adjustment"]),
+        "research_asset": money(inputs["research_asset"]),
+        "equity_value": money(v["equity_value"]),
         "shares": round(inputs["shares"], 4),
         "fair_value_per_share": round(fv, 2),
         "upside_pct": round(upside, 1),

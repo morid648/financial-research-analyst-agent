@@ -93,9 +93,10 @@ def test_non_usd_listing_is_valued_in_usd_and_converted_back(monkeypatch):
     )
     # Same business in EUR: every USD figure is 1.25x larger, and value/share is
     # converted back at 1.25, so it equals the USD case exactly (no debt here).
-    assert eur["base_revenue"] == pytest.approx(1250.0)
+    assert eur["inputs"]["revenue"] == pytest.approx(1250.0)  # computed in USD millions
+    assert eur["base_revenue"] == pytest.approx(1000.0)  # shown in EUR millions
     assert eur["fair_value_per_share"] == pytest.approx(usd["fair_value_per_share"], rel=1e-6)
-    assert eur["currency_code"] == "EUR" and eur["money_symbol"] == "$"
+    assert eur["currency_code"] == "EUR" and eur["money_symbol"] == "€"
     assert eur["rf"] == pytest.approx(4.5)  # USD riskfree, not a local-currency rate
 
 
@@ -358,3 +359,19 @@ def test_complete_data_has_no_warnings(monkeypatch):
     )
     i = _inputs(monkeypatch, symbol="AAPL", income=income)
     assert i["data_warnings"] == []
+
+
+def test_indian_figures_are_shown_in_rupee_crore(monkeypatch):
+    """Valued in USD, displayed in ₹ Cr; the bridge reconciles to value per share."""
+    r = md.dcf_valuation(
+        _inputs(
+            monkeypatch,
+            symbol="TEST.NS",
+            info={"currency": "INR", "financialCurrency": "INR", "country": "India"},
+            fx={"INRUSD=X": 0.0105},
+        )
+    )
+    assert r["money_symbol"] == "₹" and r["unit"] == "Cr"
+    assert r["base_revenue"] == pytest.approx(100.0)  # ₹1,000 M = ₹100 Cr
+    per_share = r["equity_value"] * 1e7 / (r["shares"] * 1e6)
+    assert per_share == pytest.approx(r["fair_value_per_share"], abs=0.01)
